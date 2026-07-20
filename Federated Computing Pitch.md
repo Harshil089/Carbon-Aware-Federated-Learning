@@ -3,9 +3,9 @@
 ## A Multi-Objective Reinforcement Learning Framework for the Latency–Carbon Trade-off
 
 **Research concept note and mentor pitch**  
-**Prepared by:** *[Your Name]*  
-**Program / Department:** *[Program or Department]*  
-**Date:** *[Insert Date]*
+**Prepared by:** *Harshil Buch, Dadasaheb Bhosure*  
+**Program / Department:** *B.Tech-CSE*  
+**Date:** *20th July*
 
 ---
 
