@@ -1,0 +1,14 @@
+{
+  "seed": 42,
+  "duration_hours": 10,
+  "batch_size": 256,
+  "hidden_dim": 256,
+  "learning_rate": 0.01,
+  "train_limit": 10000,
+  "test_limit": 2000,
+  "report_interval_seconds": 60,
+  "carbon_measure_interval_seconds": 15,
+  "country_iso_code": "IND",
+  "data_dir": "data/raw",
+  "output_dir": "results/single_device_10h"
+}

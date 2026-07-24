@@ -1,2 +1,2 @@
 numpy>=1.26,<3
-
+codecarbon>=3.2,<4
