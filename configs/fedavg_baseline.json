@@ -1,0 +1,14 @@
+{
+  "seed": 42,
+  "num_clients": 5,
+  "clients_per_round": 3,
+  "rounds": 10,
+  "local_epochs": 1,
+  "batch_size": 64,
+  "learning_rate": 0.1,
+  "train_limit": 10000,
+  "test_limit": 2000,
+  "data_dir": "data/raw",
+  "output_dir": "results/fedavg_baseline"
+}
+
