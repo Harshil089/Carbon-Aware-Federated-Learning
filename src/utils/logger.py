@@ -11,6 +11,7 @@ class ExperimentLogger:
         "experiment_id", "scheduler", "round", "selected_client_ids", "num_participants",
         "global_accuracy", "global_loss", "accuracy_improvement", "mean_local_loss",
         "round_wall_time_s", "aggregation_time_s", "cumulative_wall_time_s",
+        "round_energy_kwh", "round_carbon_gco2e", "cumulative_energy_kwh", "cumulative_carbon_gco2e",
     ]
     CLIENT_FIELDS = [
         "experiment_id", "seed", "round", "client_id", "tier", "selected", "eligible",

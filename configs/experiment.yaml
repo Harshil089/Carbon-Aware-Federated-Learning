@@ -21,3 +21,15 @@ federated:
 clients_config: configs/clients.yaml
 results_dir: results
 device: auto              # auto | cpu | cuda
+
+# Energy / carbon accounting of the machine running the experiment (see src/simulation/energy_tracker.py).
+energy:
+  enabled: true
+  sample_interval_s: 1.0
+  # Grid carbon intensity in gCO2e/kWh. 475 is roughly the global-average electricity mix; it is an
+  # ASSUMPTION, not a measurement of where your Colab VM runs. Override with --carbon-intensity
+  # (e.g. a regional value) for a more defensible number.
+  carbon_intensity_gco2e_kwh: 475.0
+  # Used only when CPU power cannot be read (RAPL is usually hidden on cloud VMs): placeholder values.
+  cpu_tdp_watts: 65.0
+  cpu_idle_fraction: 0.3

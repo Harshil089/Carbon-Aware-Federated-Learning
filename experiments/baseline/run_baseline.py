@@ -31,6 +31,7 @@ from src.federated.server import FederatedServer  # noqa: E402
 from src.federated.training import evaluate  # noqa: E402
 from src.models import build_model, count_parameters  # noqa: E402
 from src.simulation.client_profiles import load_client_profiles  # noqa: E402
+from src.simulation.energy_tracker import EnergyTracker  # noqa: E402
 from src.utils.config import apply_overrides, load_yaml  # noqa: E402
 from src.utils.logger import ExperimentLogger  # noqa: E402
 from src.utils.seeds import resolve_device, set_seed  # noqa: E402
@@ -48,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--local-epochs", type=int)
     p.add_argument("--seed", type=int)
     p.add_argument("--device", help="auto | cpu | cuda")
+    p.add_argument("--carbon-intensity", type=float, help="Grid carbon intensity in gCO2e/kWh")
+    p.add_argument("--no-energy", action="store_true", help="Disable energy/carbon tracking")
     p.add_argument("--results-dir")
     return p.parse_args()
 
@@ -64,6 +67,8 @@ def build_config(args: argparse.Namespace) -> dict:
         "federated.local_epochs": args.local_epochs,
         "seed": args.seed,
         "device": args.device,
+        "energy.carbon_intensity_gco2e_kwh": args.carbon_intensity,
+        "energy.enabled": False if args.no_energy else None,
         "results_dir": args.results_dir,
     })
 
@@ -77,13 +82,18 @@ def make_partitions(labels: np.ndarray, num_clients: int, part_cfg: dict, seed: 
 
 
 def save_plots(run_dir: Path, rounds: pd.DataFrame, dist: np.ndarray, title: str) -> None:
-    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
+    has_energy = rounds["cumulative_carbon_gco2e"].notna().any()
+    fig, ax = plt.subplots(1, 3 if has_energy else 2, figsize=(16.5 if has_energy else 11, 4))
     ax[0].plot(rounds["round"], rounds["global_accuracy"], marker="o")
     ax[0].set(xlabel="Round", ylabel="Test accuracy", title="Global accuracy")
     ax[0].grid(alpha=0.3)
     ax[1].plot(rounds["round"], rounds["global_loss"], marker="o", color="tab:red")
     ax[1].set(xlabel="Round", ylabel="Test loss", title="Global loss")
     ax[1].grid(alpha=0.3)
+    if has_energy:
+        ax[2].plot(rounds["cumulative_carbon_gco2e"], rounds["global_accuracy"], marker="o", color="tab:green")
+        ax[2].set(xlabel="Cumulative emissions (gCO2e)", ylabel="Test accuracy", title="Accuracy vs carbon")
+        ax[2].grid(alpha=0.3)
     fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(run_dir / "accuracy_curve.png", dpi=120)
@@ -146,6 +156,18 @@ def run(config: dict) -> Path:
           f"client sizes {[len(s) for s in shards]}")
     print(f"round  0  acc {init_acc:.4f}  loss {init_loss:.4f}  (initial model)")
 
+    ecfg = config["energy"]
+    tracker = EnergyTracker(
+        ecfg["carbon_intensity_gco2e_kwh"], ecfg["sample_interval_s"],
+        ecfg["cpu_tdp_watts"], ecfg["cpu_idle_fraction"],
+        track_gpu=device.type == "cuda",
+    ) if ecfg["enabled"] else None
+    if tracker:
+        tracker.start()
+        print(f"Energy tracking: CPU={tracker.cpu_source}, GPU={tracker.gpu_source}, "
+              f"intensity={ecfg['carbon_intensity_gco2e_kwh']} gCO2e/kWh (assumed)")
+    prev_energy, prev_carbon = 0.0, 0.0
+
     prev_acc, cumulative = init_acc, 0.0
     best_acc, best_state = init_acc, copy.deepcopy(model.state_dict())
     for rnd in range(1, fed["num_rounds"] + 1):
@@ -170,7 +192,18 @@ def run(config: dict) -> Path:
                 "bandwidth_mbps": c.profile.bandwidth_mbps, "latency_ms": c.profile.latency_ms,
             })
         acc = out["global_accuracy"]
+        energy_row = {}
+        if tracker:
+            snap = tracker.snapshot()
+            energy_row = {
+                "round_energy_kwh": f"{snap['energy_kwh'] - prev_energy:.8f}",
+                "round_carbon_gco2e": f"{snap['carbon_gco2e'] - prev_carbon:.6f}",
+                "cumulative_energy_kwh": f"{snap['energy_kwh']:.8f}",
+                "cumulative_carbon_gco2e": f"{snap['carbon_gco2e']:.6f}",
+            }
+            prev_energy, prev_carbon = snap["energy_kwh"], snap["carbon_gco2e"]
         logger.log_round({
+            **energy_row,
             "scheduler": "random" if fed["clients_per_round"] < num_clients else "all_clients",
             "round": rnd, "selected_client_ids": " ".join(map(str, out["selected"])),
             "num_participants": len(out["selected"]),
@@ -186,6 +219,15 @@ def run(config: dict) -> Path:
             best_acc, best_state = acc, copy.deepcopy(model.state_dict())
         prev_acc = acc
 
+    energy_summary = None
+    if tracker:
+        tracker.stop()
+        energy_summary = tracker.summary()
+        logger.save_json("energy.json", energy_summary)
+        print(f"Energy: {energy_summary['energy_kwh'] * 1000:.3f} Wh "
+              f"(CPU {energy_summary['cpu_energy_kwh'] * 1000:.3f} Wh [{energy_summary['cpu_source']}], "
+              f"GPU {energy_summary['gpu_energy_kwh'] * 1000:.3f} Wh [{energy_summary['gpu_source']}]); "
+              f"carbon {energy_summary['carbon_gco2e']:.3f} gCO2e @ {energy_summary['carbon_intensity_gco2e_kwh']} g/kWh")
     rounds = pd.read_csv(logger.round_path)
     save_plots(run_dir, rounds, dist, f"FedAvg {config['dataset']} ({part_tag}, {num_clients} clients)")
     torch.save(model.state_dict(), run_dir / "final_model.pt")
@@ -196,6 +238,8 @@ def run(config: dict) -> Path:
         "seed": seed, "rounds": fed["num_rounds"], "initial_accuracy": init_acc,
         "final_accuracy": float(rounds["global_accuracy"].iloc[-1]), "best_accuracy": best_acc,
         "total_wall_time_s": cumulative, "device": str(device),
+        "total_energy_kwh": energy_summary["energy_kwh"] if energy_summary else None,
+        "total_carbon_gco2e": energy_summary["carbon_gco2e"] if energy_summary else None,
     }
     logger.save_json("summary.json", summary)
     print(f"Final accuracy {summary['final_accuracy']:.4f} (best {best_acc:.4f}); results in {run_dir}")

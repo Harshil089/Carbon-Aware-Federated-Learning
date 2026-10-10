@@ -6,3 +6,5 @@ pandas
 pyyaml
 matplotlib
 pytest
+psutil
+nvidia-ml-py
