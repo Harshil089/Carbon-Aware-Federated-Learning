@@ -1,0 +1,23 @@
+# Baseline FedAvg experiment (no scheduler / RL yet).
+experiment_name: fedavg_baseline
+seed: 42
+dataset: mnist            # mnist | fashion_mnist
+data_dir: data/raw
+model: cnn                # cnn | mlp
+
+partition:
+  type: iid               # iid | dirichlet
+  alpha: 0.5              # Dirichlet concentration; ignored for iid
+  min_samples_per_client: 10
+
+federated:
+  num_rounds: 20
+  clients_per_round: 5    # all 5 clients participate; fewer => uniform random selection
+  local_epochs: 1
+  batch_size: 32
+  learning_rate: 0.01
+  momentum: 0.9
+
+clients_config: configs/clients.yaml
+results_dir: results
+device: auto              # auto | cpu | cuda

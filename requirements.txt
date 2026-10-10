@@ -1,0 +1,8 @@
+# Colab already ships torch/torchvision; pip leaves them alone if present.
+torch>=2.0
+torchvision>=0.15
+numpy
+pandas
+pyyaml
+matplotlib
+pytest
