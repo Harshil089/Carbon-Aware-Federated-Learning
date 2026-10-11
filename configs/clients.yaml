@@ -1,0 +1,43 @@
+# Simulated client profiles. All values are PLACEHOLDERS, not measurements.
+# They are logged now and will drive the latency/energy/carbon models later.
+clients:
+  - client_id: 0
+    tier: low_end
+    compute_power_watts: 15.0
+    compute_speed_factor: 0.5
+    carbon_intensity_gco2e_kwh: 700.0
+    bandwidth_mbps: 5.0
+    latency_ms: 80.0
+    availability: true
+  - client_id: 1
+    tier: low_end
+    compute_power_watts: 20.0
+    compute_speed_factor: 0.7
+    carbon_intensity_gco2e_kwh: 250.0
+    bandwidth_mbps: 10.0
+    latency_ms: 60.0
+    availability: true
+  - client_id: 2
+    tier: mid_range
+    compute_power_watts: 45.0
+    compute_speed_factor: 1.0
+    carbon_intensity_gco2e_kwh: 450.0
+    bandwidth_mbps: 25.0
+    latency_ms: 30.0
+    availability: true
+  - client_id: 3
+    tier: high_end
+    compute_power_watts: 95.0
+    compute_speed_factor: 1.8
+    carbon_intensity_gco2e_kwh: 600.0
+    bandwidth_mbps: 100.0
+    latency_ms: 15.0
+    availability: true
+  - client_id: 4
+    tier: high_end
+    compute_power_watts: 120.0
+    compute_speed_factor: 2.2
+    carbon_intensity_gco2e_kwh: 80.0
+    bandwidth_mbps: 200.0
+    latency_ms: 10.0
+    availability: true
