@@ -12,12 +12,19 @@ class ExperimentLogger:
         "global_accuracy", "global_loss", "accuracy_improvement", "mean_local_loss",
         "round_wall_time_s", "aggregation_time_s", "cumulative_wall_time_s",
         "round_energy_kwh", "round_carbon_gco2e", "cumulative_energy_kwh", "cumulative_carbon_gco2e",
+        # Simulated federated system (src/simulation/system_model.py); the four columns above are the
+        # measured energy of the machine running the simulation.
+        "sim_round_latency_s", "sim_straggler_client_id", "sim_cumulative_latency_s",
+        "sim_client_energy_kwh", "sim_server_energy_kwh", "sim_round_energy_kwh",
+        "sim_round_carbon_gco2e", "sim_cumulative_energy_kwh", "sim_cumulative_carbon_gco2e",
     ]
     CLIENT_FIELDS = [
         "experiment_id", "seed", "round", "client_id", "tier", "selected", "eligible",
         "dataset_size", "local_epochs", "train_wall_time_s", "local_loss",
         "participation_count", "compute_power_watts", "compute_speed_factor",
-        "carbon_intensity_gco2e_kwh", "bandwidth_mbps", "latency_ms",
+        "carbon_intensity_gco2e_kwh", "bandwidth_mbps", "upload_bandwidth_mbps", "latency_ms",
+        "sim_download_s", "sim_train_s", "sim_upload_s", "sim_total_s",
+        "sim_compute_energy_kwh", "sim_comm_energy_kwh", "sim_energy_kwh", "sim_carbon_gco2e",
     ]
 
     def __init__(self, run_dir: str | Path, experiment_id: str):

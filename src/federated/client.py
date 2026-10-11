@@ -35,6 +35,7 @@ class FederatedClient:
             model, self.data,
             epochs=cfg["local_epochs"], batch_size=cfg["batch_size"],
             lr=cfg["learning_rate"], momentum=cfg["momentum"], generator=self.generator,
+            hflip=cfg.get("augment_hflip", False),
         )
         if self.data.x.is_cuda:
             torch.cuda.synchronize()

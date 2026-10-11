@@ -12,8 +12,12 @@ def train_local(
     lr: float,
     momentum: float,
     generator: torch.Generator,
+    hflip: bool = False,
 ) -> float:
-    """Run local SGD on ``data`` in place and return the mean training loss of the last epoch."""
+    """Run local SGD on ``data`` in place and return the mean training loss of the last epoch.
+
+    ``hflip`` mirrors a random half of each batch left-right (standard CIFAR augmentation; not for digits).
+    """
     model.train()
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     loss_fn = nn.CrossEntropyLoss()
@@ -25,6 +29,9 @@ def train_local(
         for start in range(0, n, batch_size):
             idx = perm[start:start + batch_size]
             xb, yb = data.x[idx], data.y[idx]
+            if hflip:
+                flip = torch.rand(len(idx), generator=generator) < 0.5
+                xb = torch.where(flip.to(xb.device).view(-1, 1, 1, 1), xb.flip(3), xb)
             optimizer.zero_grad()
             loss = loss_fn(model(xb), yb)
             loss.backward()

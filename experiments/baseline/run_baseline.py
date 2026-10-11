@@ -1,8 +1,9 @@
-"""FedAvg baseline: five simulated clients, IID or Dirichlet non-IID MNIST, round-level CSV logs.
+"""FedAvg baseline: simulated clients, IID or Dirichlet non-IID MNIST / Fashion-MNIST / CIFAR-10, CSV logs.
 
 Usage (from the repository root):
     python experiments/baseline/run_baseline.py
     python experiments/baseline/run_baseline.py --partition dirichlet --alpha 0.1 --rounds 30
+    python experiments/baseline/run_baseline.py --config configs/experiment_cifar10.yaml --alpha 0.1
 """
 import argparse
 import sys
@@ -32,6 +33,7 @@ from src.federated.training import evaluate  # noqa: E402
 from src.models import build_model, count_parameters  # noqa: E402
 from src.simulation.client_profiles import load_client_profiles  # noqa: E402
 from src.simulation.energy_tracker import EnergyTracker  # noqa: E402
+from src.simulation.system_model import SystemModel  # noqa: E402
 from src.utils.config import apply_overrides, load_yaml  # noqa: E402
 from src.utils.logger import ExperimentLogger  # noqa: E402
 from src.utils.seeds import resolve_device, set_seed  # noqa: E402
@@ -40,14 +42,15 @@ from src.utils.seeds import resolve_device, set_seed  # noqa: E402
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--config", default=str(ROOT / "configs" / "experiment.yaml"))
-    p.add_argument("--dataset", choices=["mnist", "fashion_mnist"])
-    p.add_argument("--model", choices=["cnn", "mlp"])
+    p.add_argument("--dataset", choices=["mnist", "fashion_mnist", "cifar10"])
+    p.add_argument("--model", choices=["cnn", "cifar_cnn", "mlp"])
     p.add_argument("--partition", choices=["iid", "dirichlet"])
     p.add_argument("--alpha", type=float, help="Dirichlet concentration (non-IID only)")
     p.add_argument("--rounds", type=int)
     p.add_argument("--clients-per-round", type=int)
     p.add_argument("--local-epochs", type=int)
     p.add_argument("--seed", type=int)
+    p.add_argument("--clients-config", help="Client profile YAML, e.g. configs/clients_pool50.yaml")
     p.add_argument("--device", help="auto | cpu | cuda")
     p.add_argument("--carbon-intensity", type=float, help="Grid carbon intensity in gCO2e/kWh")
     p.add_argument("--no-energy", action="store_true", help="Disable energy/carbon tracking")
@@ -66,6 +69,7 @@ def build_config(args: argparse.Namespace) -> dict:
         "federated.clients_per_round": args.clients_per_round,
         "federated.local_epochs": args.local_epochs,
         "seed": args.seed,
+        "clients_config": args.clients_config,
         "device": args.device,
         "energy.carbon_intensity_gco2e_kwh": args.carbon_intensity,
         "energy.enabled": False if args.no_energy else None,
@@ -82,18 +86,17 @@ def make_partitions(labels: np.ndarray, num_clients: int, part_cfg: dict, seed: 
 
 
 def save_plots(run_dir: Path, rounds: pd.DataFrame, dist: np.ndarray, title: str) -> None:
-    has_energy = rounds["cumulative_carbon_gco2e"].notna().any()
-    fig, ax = plt.subplots(1, 3 if has_energy else 2, figsize=(16.5 if has_energy else 11, 4))
+    fig, ax = plt.subplots(1, 4, figsize=(20, 4))
     ax[0].plot(rounds["round"], rounds["global_accuracy"], marker="o")
     ax[0].set(xlabel="Round", ylabel="Test accuracy", title="Global accuracy")
-    ax[0].grid(alpha=0.3)
     ax[1].plot(rounds["round"], rounds["global_loss"], marker="o", color="tab:red")
     ax[1].set(xlabel="Round", ylabel="Test loss", title="Global loss")
-    ax[1].grid(alpha=0.3)
-    if has_energy:
-        ax[2].plot(rounds["cumulative_carbon_gco2e"], rounds["global_accuracy"], marker="o", color="tab:green")
-        ax[2].set(xlabel="Cumulative emissions (gCO2e)", ylabel="Test accuracy", title="Accuracy vs carbon")
-        ax[2].grid(alpha=0.3)
+    ax[2].plot(rounds["sim_cumulative_latency_s"] / 60, rounds["global_accuracy"], marker="o", color="tab:purple")
+    ax[2].set(xlabel="Simulated training time (min)", ylabel="Test accuracy", title="Accuracy vs simulated latency")
+    ax[3].plot(rounds["sim_cumulative_carbon_gco2e"], rounds["global_accuracy"], marker="o", color="tab:green")
+    ax[3].set(xlabel="Simulated emissions (gCO2e)", ylabel="Test accuracy", title="Accuracy vs simulated carbon")
+    for a in ax:
+        a.grid(alpha=0.3)
     fig.suptitle(title)
     fig.tight_layout()
     fig.savefig(run_dir / "accuracy_curve.png", dpi=120)
@@ -138,22 +141,27 @@ def run(config: dict) -> Path:
     logger = ExperimentLogger(run_dir, experiment_id)
 
     clients = [FederatedClient(p, train.subset(s).to(device), seed) for p, s in zip(profiles, shards)]
+    clients_by_id = {c.client_id: c for c in clients}
     model = build_model(config["model"], num_classes).to(device)
     server = FederatedServer(model, clients, test.to(device), seed)
+    system = SystemModel.from_config(config.get("system_model"))
+    model_bits = system.model_bits(model)
 
     init_acc, init_loss = evaluate(server.model, server.test_data)
     logger.save_json("config.json", {
         **config, "experiment_id": experiment_id, "device_used": str(device),
         "torch_version": torch.__version__, "model_parameters": count_parameters(model),
         "num_train_samples": len(train), "num_test_samples": len(test),
+        "num_clients": num_clients, "model_size_mb": model_bits / 8e6,
     })
     logger.save_json("client_profiles.json", {"clients": [p.as_dict() for p in profiles]})
     pd.DataFrame(dist, columns=[f"class_{k}" for k in range(num_classes)]).rename_axis("client_id").to_csv(
         run_dir / "class_distribution.csv")
     np.savez_compressed(run_dir / "partitions.npz", **{f"client_{p.client_id}": s for p, s in zip(profiles, shards)})
 
+    sizes = [len(s) for s in shards]
     print(f"Run {experiment_id} on {device}; {count_parameters(model):,} params; "
-          f"client sizes {[len(s) for s in shards]}")
+          f"{num_clients} clients, sizes min/median/max {min(sizes)}/{int(np.median(sizes))}/{max(sizes)}")
     print(f"round  0  acc {init_acc:.4f}  loss {init_loss:.4f}  (initial model)")
 
     ecfg = config["energy"]
@@ -169,6 +177,7 @@ def run(config: dict) -> Path:
     prev_energy, prev_carbon = 0.0, 0.0
 
     prev_acc, cumulative = init_acc, 0.0
+    sim_latency = sim_energy = sim_carbon = 0.0
     best_acc, best_state = init_acc, copy.deepcopy(model.state_dict())
     for rnd in range(1, fed["num_rounds"] + 1):
         start = time.perf_counter()
@@ -176,9 +185,16 @@ def run(config: dict) -> Path:
         wall = time.perf_counter() - start
         cumulative += wall
         res = out["client_results"]
+        costs = {cid: system.client_cost(clients_by_id[cid].profile, r["num_samples"], fed["local_epochs"], model_bits)
+                 for cid, r in res.items()}
+        sim = system.round_cost(costs, out["aggregation_time_s"])
+        sim_latency += sim["latency_s"]
+        sim_energy += sim["energy_kwh"]
+        sim_carbon += sim["carbon_gco2e"]
 
         for c in clients:
             selected = c.client_id in res
+            cost = costs.get(c.client_id)
             logger.log_client({
                 "seed": seed, "round": rnd, "client_id": c.client_id, "tier": c.profile.tier,
                 "selected": int(selected), "eligible": int(c.profile.availability),
@@ -189,7 +205,15 @@ def run(config: dict) -> Path:
                 "compute_power_watts": c.profile.compute_power_watts,
                 "compute_speed_factor": c.profile.compute_speed_factor,
                 "carbon_intensity_gco2e_kwh": c.profile.carbon_intensity_gco2e_kwh,
-                "bandwidth_mbps": c.profile.bandwidth_mbps, "latency_ms": c.profile.latency_ms,
+                "bandwidth_mbps": c.profile.bandwidth_mbps, "upload_bandwidth_mbps": c.profile.upload_bandwidth,
+                "latency_ms": c.profile.latency_ms,
+                **({
+                    "sim_download_s": round(cost["download_s"], 4), "sim_train_s": round(cost["train_s"], 4),
+                    "sim_upload_s": round(cost["upload_s"], 4), "sim_total_s": round(cost["total_s"], 4),
+                    "sim_compute_energy_kwh": f"{cost['compute_energy_kwh']:.8f}",
+                    "sim_comm_energy_kwh": f"{cost['comm_energy_kwh']:.8f}",
+                    "sim_energy_kwh": f"{cost['energy_kwh']:.8f}", "sim_carbon_gco2e": f"{cost['carbon_gco2e']:.6f}",
+                } if cost else {}),
             })
         acc = out["global_accuracy"]
         energy_row = {}
@@ -212,9 +236,19 @@ def run(config: dict) -> Path:
             "mean_local_loss": round(float(np.mean([r["local_loss"] for r in res.values()])), 5),
             "round_wall_time_s": round(wall, 4), "aggregation_time_s": round(out["aggregation_time_s"], 5),
             "cumulative_wall_time_s": round(cumulative, 4),
+            "sim_round_latency_s": round(sim["latency_s"], 4),
+            "sim_straggler_client_id": sim["straggler_client_id"],
+            "sim_cumulative_latency_s": round(sim_latency, 4),
+            "sim_client_energy_kwh": f"{sim['client_energy_kwh']:.8f}",
+            "sim_server_energy_kwh": f"{sim['server_energy_kwh']:.8f}",
+            "sim_round_energy_kwh": f"{sim['energy_kwh']:.8f}",
+            "sim_round_carbon_gco2e": f"{sim['carbon_gco2e']:.6f}",
+            "sim_cumulative_energy_kwh": f"{sim_energy:.8f}",
+            "sim_cumulative_carbon_gco2e": f"{sim_carbon:.6f}",
         })
         print(f"round {rnd:2d}  acc {acc:.4f}  loss {out['global_loss']:.4f}  "
-              f"clients {out['selected']}  {wall:.1f}s")
+              f"{len(out['selected'])} clients  sim {sim['latency_s']:.1f}s / {sim['carbon_gco2e']:.2f} gCO2e  "
+              f"(machine {wall:.1f}s)")
         if acc > best_acc:
             best_acc, best_state = acc, copy.deepcopy(model.state_dict())
         prev_acc = acc
@@ -240,8 +274,11 @@ def run(config: dict) -> Path:
         "total_wall_time_s": cumulative, "device": str(device),
         "total_energy_kwh": energy_summary["energy_kwh"] if energy_summary else None,
         "total_carbon_gco2e": energy_summary["carbon_gco2e"] if energy_summary else None,
+        "num_clients": num_clients, "clients_per_round": fed["clients_per_round"],
+        "sim_total_latency_s": sim_latency, "sim_total_energy_kwh": sim_energy, "sim_total_carbon_gco2e": sim_carbon,
     }
     logger.save_json("summary.json", summary)
+    print(f"Simulated federation: {sim_latency / 60:.1f} min, {sim_energy * 1000:.2f} Wh, {sim_carbon:.2f} gCO2e")
     print(f"Final accuracy {summary['final_accuracy']:.4f} (best {best_acc:.4f}); results in {run_dir}")
     return run_dir
 

@@ -1,9 +1,9 @@
 from torch import nn
 
-from .cnn import SmallCNN
+from .cnn import CifarCNN, SmallCNN
 from .mlp import MLP
 
-MODELS = {"cnn": SmallCNN, "mlp": MLP}
+MODELS = {"cnn": SmallCNN, "cifar_cnn": CifarCNN, "mlp": MLP}
 
 
 def build_model(name: str, num_classes: int = 10) -> nn.Module:
