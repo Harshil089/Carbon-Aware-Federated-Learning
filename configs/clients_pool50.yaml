@@ -1,0 +1,29 @@
+# 50 simulated clients sampled from per-tier ranges (src/simulation/client_profiles.py:generate_client_profiles).
+# All ranges are PLACEHOLDERS for a research simulation, not measurements of real devices.
+generate:
+  num_clients: 50
+  seed: 0                 # profile sampling seed; kept separate from the experiment seed so the pool stays fixed
+  availability_prob: 1.0  # dynamic availability comes later
+  carbon_intensity_gco2e_kwh: [30, 800]   # roughly hydro/nuclear-heavy grids up to coal-heavy grids
+  tiers:
+    low_end:              # phones, Raspberry-Pi-class boards
+      share: 0.4
+      compute_power_watts: [5, 20]
+      compute_speed_factor: [0.2, 0.6]
+      bandwidth_mbps: [2, 20]
+      upload_bandwidth_mbps: [0.5, 5]
+      latency_ms: [50, 150]
+    mid_range:            # laptops
+      share: 0.4
+      compute_power_watts: [30, 60]
+      compute_speed_factor: [0.8, 1.2]
+      bandwidth_mbps: [20, 100]
+      upload_bandwidth_mbps: [5, 30]
+      latency_ms: [20, 50]
+    high_end:             # workstations / edge servers with a GPU
+      share: 0.2
+      compute_power_watts: [80, 150]
+      compute_speed_factor: [1.5, 3.0]
+      bandwidth_mbps: [100, 500]
+      upload_bandwidth_mbps: [50, 200]
+      latency_ms: [5, 20]

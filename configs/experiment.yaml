@@ -1,0 +1,45 @@
+# Baseline FedAvg experiment (no scheduler / RL yet).
+experiment_name: fedavg_baseline
+seed: 42
+dataset: mnist            # mnist | fashion_mnist | cifar10 (see experiment_cifar10.yaml)
+data_dir: data/raw
+model: cnn                # cnn | mlp (28x28 grayscale); cifar_cnn for CIFAR-10
+
+partition:
+  type: iid               # iid | dirichlet
+  alpha: 0.5              # Dirichlet concentration; ignored for iid
+  min_samples_per_client: 10
+
+federated:
+  num_rounds: 20
+  clients_per_round: 5    # all 5 clients participate; fewer => uniform random selection
+  local_epochs: 1
+  batch_size: 32
+  learning_rate: 0.01
+  momentum: 0.9
+  augment_hflip: false    # random left-right flips during local training; for CIFAR, not digits
+
+clients_config: configs/clients.yaml   # or configs/clients_pool50.yaml for a 50-client pool
+results_dir: results
+device: auto              # auto | cpu | cuda
+
+# Energy / carbon accounting of the machine running the experiment (see src/simulation/energy_tracker.py).
+energy:
+  enabled: true
+  sample_interval_s: 1.0
+  # Grid carbon intensity in gCO2e/kWh. 475 is roughly the global-average electricity mix; it is an
+  # ASSUMPTION, not a measurement of where your Colab VM runs. Override with --carbon-intensity
+  # (e.g. a regional value) for a more defensible number.
+  carbon_intensity_gco2e_kwh: 475.0
+  # Used only when CPU power cannot be read (RAPL is usually hidden on cloud VMs): placeholder values.
+  cpu_tdp_watts: 65.0
+  cpu_idle_fraction: 0.3
+
+# Simulated latency / energy / carbon of the virtual clients (src/simulation/system_model.py), logged as sim_* columns.
+# Each selected client is modelled as a separate device training in parallel; round latency is the slowest client.
+# All values are PLACEHOLDERS for the simulation, not measurements.
+system_model:
+  base_samples_per_second: 1000.0   # training throughput of a compute_speed_factor=1.0 client on this model
+  comm_power_watts: 5.0             # network interface power while downloading/uploading the model
+  server_power_watts: 200.0         # aggregation server, powered for the whole round
+  server_carbon_intensity_gco2e_kwh: 400.0
