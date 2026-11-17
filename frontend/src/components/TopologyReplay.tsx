@@ -35,7 +35,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
   }, [playing, maxRounds]);
 
   if (!results) {
-    return <div className="panel">Loading synchronous federated topology replay…</div>;
+    return <div className="panel">Loading round replay…</div>;
   }
 
   const trialRows = results.rows
@@ -66,11 +66,11 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
           <div className="panel-head">
             <div>
               <div className="head-inline">
-                <h2>Synchronous Hub-and-Spoke FedAvg Topology</h2>
+                <h2>Who trained this round</h2>
                 <span className="plate-tag num">ROUND {round} / {maxRounds}</span>
               </div>
               <p className="panel-sub">
-                Scheduled nodes transmit weight updates in vermilion; unselected nodes remain on standby and draw idle power until round completion.
+                Highlighted PCs were picked: they train and send updates to the coordinator. The others sit idle but still draw power until the round ends.
               </p>
             </div>
           </div>
@@ -95,7 +95,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                     key={`link-${n.name}`}
                     d={d}
                     fill="none"
-                    stroke={on ? '#D9381E' : '#C8C2B4'}
+                    stroke={on ? '#0F766E' : '#C8C2B4'}
                     strokeWidth={on ? 2.6 : 1.4}
                     strokeDasharray={on ? '7 4' : '3 3'}
                     animate={
@@ -121,7 +121,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                 return (
                   <motion.g
                     key={n.name}
-                    data-tip={`${n.name} (${on ? 'ACTIVE' : 'STANDBY'}): ${n.ram_gb}GB RAM, ${n.relative_speed}x speed, ${activeW}W active, CI ${ci} kg/kWh. ${on ? 'Training and uploading weights' : 'Drawing idle standby power'} in round ${round}.`}
+                    data-tip={`${n.name} (${on ? 'picked' : 'not picked'}) in round ${round}: ${n.relative_speed}× PC1 speed, ${activeW} W while training, grid ${ci} kg CO₂/kWh. ${on ? 'Training and sending its update.' : 'Idle, still drawing power.'}`}
                     animate={{ scale: on ? 1.015 : 0.99, opacity: on ? 1 : 0.72 }}
                     transition={{ type: 'spring', stiffness: 360, damping: 28 }}
                     style={{ transformOrigin: `${p.x + 95}px ${p.y + 46}px` }}
@@ -133,11 +133,11 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                       height={94}
                       rx={4}
                       fill={on ? '#FFFFFF' : '#F3EFE6'}
-                      stroke={on ? '#D9381E' : '#121316'}
+                      stroke={on ? '#0F766E' : '#121316'}
                       strokeWidth={on ? 2 : 1}
                     />
                     <text x={p.x + 12} y={p.y + 23} fill="#121316" fontSize="14" fontWeight="700">
-                      {n.name} {n.name === 'PC1' ? '· METER' : ''}
+                      {n.name}
                     </text>
                     <rect
                       x={p.x + 122}
@@ -145,7 +145,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                       width={56}
                       height={18}
                       rx={2}
-                      fill={on ? '#D9381E' : '#E2DDD1'}
+                      fill={on ? '#0F766E' : '#E2DDD1'}
                     />
                     <text
                       x={p.x + 150}
@@ -156,23 +156,23 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                       fontFamily="var(--mono)"
                       fontWeight="700"
                     >
-                      {on ? 'ACTIVE' : 'STANDBY'}
+                      {on ? 'PICKED' : 'IDLE'}
                     </text>
                     <text x={p.x + 12} y={p.y + 46} fill="#3F3D37" fontSize="11.5">
-                      {n.ram_gb}GB RAM · {n.relative_speed}× speed
+                      {n.ram_gb}GB RAM · {n.relative_speed}× PC1 speed
                     </text>
                     <text x={p.x + 12} y={p.y + 64} fill="#57534A" fontSize="10.5" fontFamily="var(--mono)">
-                      {activeW}W act / {n.idle_power_w_assumed}W idle
+                      {activeW}W training / {n.idle_power_w_assumed}W idle
                     </text>
                     <text x={p.x + 12} y={p.y + 81} fill="#57534A" fontSize="10.5" fontFamily="var(--mono)">
-                      Net {n.network_seconds_assumed}s · CI {ci} kg/kWh
+                      Upload {n.network_seconds_assumed}s · grid {ci} kg/kWh
                     </text>
                   </motion.g>
                 );
               })}
 
               <g
-                data-tip={`FedAvg Coordinator (${coordW}W, +${aggS}s aggregation): aggregates sample-weighted updates from ${selected.join(' + ') || 'none'}. Models central server energy and latency in fl_pipeline/fedavg.py.`}
+                data-tip={`Coordinator (${coordW} W): combines the updates from ${selected.join(' + ') || 'no PCs'} into one model, taking ${aggS} s.`}
               >
                 <rect
                   x={170}
@@ -185,10 +185,10 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                   strokeWidth={1.5}
                 />
                 <text x={320} y={171} textAnchor="middle" fill="#FAF8F3" fontSize="12.5" fontWeight="700">
-                  FedAvg Coordinator ({coordW}W · +{aggS}s)
+                  Coordinator ({coordW}W · combines in {aggS}s)
                 </text>
                 <text x={320} y={191} textAnchor="middle" fill="#F59E0B" fontSize="11.5" fontFamily="var(--mono)" fontWeight="600">
-                  AGGREGATING: {selected.join(' + ') || '—'}
+                  COMBINING: {selected.join(' + ') || '—'}
                 </text>
               </g>
             </svg>
@@ -198,7 +198,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
             <button
               type="button"
               className="btn-run"
-              data-tip="Plays or pauses automatic round-by-round topology animation. Steps through recorded simulation rows in React state."
+              data-tip="Play or pause the replay."
               onClick={() => {
                 if (!playing && round >= maxRounds) setRound(1);
                 setPlaying((p) => !p);
@@ -211,7 +211,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
               type="button"
               className="btn-tune"
               aria-label="Previous round"
-              data-tip="Steps backward one communication round and pauses playback. Updates the active round index to inspect prior telemetry."
+              data-tip="Previous round."
               onClick={() => {
                 setPlaying(false);
                 setRound((r) => Math.max(1, r - 1));
@@ -223,7 +223,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
               type="button"
               className="btn-tune"
               aria-label="Next round"
-              data-tip="Steps forward one communication round and pauses playback. Updates the active round index to inspect subsequent telemetry."
+              data-tip="Next round."
               onClick={() => {
                 setPlaying(false);
                 setRound((r) => Math.min(maxRounds, r + 1));
@@ -236,7 +236,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
               type="range"
               min={1}
               max={maxRounds}
-              data-tip="Scrubs directly to any communication round in the selected trial. Filters SimulationResults.rows by round number."
+              data-tip="Jump to any round."
               value={round}
               onChange={(e) => {
                 setPlaying(false);
@@ -251,14 +251,14 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
           {/* Round Participation Barcode / Matrix Strip */}
           <div className="participation-matrix" aria-label="Round-by-round client participation matrix">
             <div className="pm-head">
-              <h3>Client Participation Schedule Matrix (Click any round column)</h3>
+              <h3>Which PCs were picked in each round (click a round to jump to it)</h3>
               <span className="num">{POLICY_META[policy]?.label ?? policy}</span>
             </div>
             <div className="pm-table-wrap">
               <table className="pm-table">
                 <thead>
                   <tr>
-                    <th data-tip="Lists each federated client node in the schedule matrix. Rows show round-by-round selection across the trial.">Node</th>
+                    <th data-tip="Each row is one PC; each column is one round.">PC</th>
                     {trialRows.map((tr) => {
                       const rNum = Number(tr.round);
                       return (
@@ -288,7 +288,7 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                           <td
                             key={`${n.name}-${rNum}`}
                             className={`pm-cell ${isPicked ? 'on' : 'off'} ${rNum === round ? 'curr' : ''}`}
-                            data-tip={`Round ${rNum} — ${n.name} ${isPicked ? 'SELECTED' : 'IDLE'}. Click to jump replay to Round ${rNum} and inspect its telemetry.`}
+                            data-tip={`Round ${rNum} — ${n.name} ${isPicked ? 'picked' : 'not picked'}. Click to jump to this round.`}
                             onClick={() => {
                               setPlaying(false);
                               setRound(rNum);
@@ -311,19 +311,19 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
           <div className="panel-head">
             <div>
               <div className="head-inline">
-                <h2>Round Telemetry &amp; Node Timing Ledger</h2>
+                <h2>This round in numbers</h2>
                 <span className="plate-tag num">SEED {trialSeed}</span>
               </div>
-              <p className="panel-sub">Select policy and performance trial seed to inspect round-level physics.</p>
+              <p className="panel-sub">Pick a rule and a repeat run to replay. All figures are simulated.</p>
             </div>
           </div>
 
           <div className="replay-selectors">
             <div className="drawer-field">
-              <label htmlFor="replay-policy">Scheduling Policy</label>
+              <label htmlFor="replay-policy">Rule</label>
               <select
                 id="replay-policy"
-                data-tip="Selects which scheduling policy's round-by-round trace to replay. Filters SimulationResults.rows by policy name."
+                data-tip="Which rule for picking PCs to replay."
                 value={policy}
                 onChange={(e) => {
                   setPlaying(false);
@@ -338,10 +338,10 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
               </select>
             </div>
             <div className="drawer-field">
-              <label htmlFor="replay-trial">Performance Trial</label>
+              <label htmlFor="replay-trial">Repeat run</label>
               <select
                 id="replay-trial"
-                data-tip="Selects the random scenario seed trial to replay. Filters SimulationResults.rows by scenario_seed."
+                data-tip="Repeat runs differ only in random timing variation."
                 value={trialSeed}
                 onChange={(e) => {
                   setPlaying(false);
@@ -362,30 +362,30 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
               <div className="rkpi-grid">
                 <div
                   className="rkpi-box"
-                  data-tip="Shows global model accuracy on the held-out test set at this round. Read from test_accuracy_REAL_MODEL_SYNTHETIC_DATA after FedAvg aggregation."
+                  data-tip="Accuracy of the combined model on test data after this round."
                 >
-                  <span>Held-Out Test Accuracy</span>
+                  <span>Accuracy</span>
                   <b className="num">{(Number(row.test_accuracy_REAL_MODEL_SYNTHETIC_DATA) * 100).toFixed(2)}%</b>
                 </div>
                 <div
                   className="rkpi-box"
-                  data-tip="Shows synchronous wall-clock duration for this round. Read from round_seconds_MODELED (slowest selected client plus aggregation)."
+                  data-tip="How long this round took: the slowest picked PC plus combining time (simulated)."
                 >
-                  <span>Synchronous Round Latency</span>
+                  <span>Round time</span>
                   <b className="num">{Number(row.round_seconds_MODELED).toFixed(2)} s</b>
                 </div>
                 <div
                   className="rkpi-box"
-                  data-tip="Shows total cluster electricity consumed in this round in Wh. Read from round_Wh_MODELED (active, idle-tail, and coordinator)."
+                  data-tip="Electricity used this round by all PCs and the coordinator, training and idle (simulated)."
                 >
-                  <span>Round Cluster Energy</span>
+                  <span>Round energy</span>
                   <b className="num">{Number(row.round_Wh_MODELED).toFixed(4)} Wh</b>
                 </div>
                 <div
                   className="rkpi-box"
-                  data-tip="Shows total carbon emissions for this round in grams of CO2. Read from round_CO2_g_MODELED using per-client grid intensity."
+                  data-tip="CO₂ from this round's electricity (simulated)."
                 >
-                  <span>Round Carbon Emissions</span>
+                  <span>Round CO₂</span>
                   <b className="num">{Number(row.round_CO2_g_MODELED).toFixed(4)} g CO₂</b>
                 </div>
               </div>
@@ -396,10 +396,10 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                   <table>
                     <thead>
                       <tr>
-                        <th data-tip="Identifies the federated client node (PC1–PC4). Matches the infrastructure client list in SimulationResults.">Node</th>
-                        <th data-tip="Shows whether the node trained this round or stayed idle. Derived from clients_selected in the round row.">State</th>
-                        <th data-tip="Shows estimated active compute plus network transfer seconds. Computed from baseTrainS / relative_speed + network_seconds_assumed.">Est. Active s</th>
-                        <th data-tip="Displays active-to-idle power transition in watts for this round. Used by the backend energy model to integrate Wh.">Power Profile</th>
+                        <th data-tip="One of the 4 PCs.">PC</th>
+                        <th data-tip="Whether this PC trained this round or waited.">State</th>
+                        <th data-tip="Estimated seconds spent training and sending the update.">Busy time (s)</th>
+                        <th data-tip="Power while training, then while waiting.">Power</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -411,12 +411,12 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                           <tr
                             key={n.name}
                             className={isSel ? 'rl-row' : ''}
-                            data-tip={`${n.name} in Round ${round}: ${isSel ? `Active ${nomWork.toFixed(2)}s at ${actW}W then ${n.idle_power_w_assumed}W idle tail` : `Standby idle at ${n.idle_power_w_assumed}W`}.`}
+                            data-tip={`${n.name} in Round ${round}: ${isSel ? `Active ${nomWork.toFixed(2)}s at ${actW}W then idle at ${n.idle_power_w_assumed}W until the round ends` : `Idle all round at ${n.idle_power_w_assumed}W`}.`}
                           >
                             <td className="num"><strong>{n.name}</strong></td>
                             <td>
                               <span className={isSel ? 'pareto-badge' : 'dom-badge'}>
-                                {isSel ? 'ACTIVE + IDLE TAIL' : '100% STANDBY IDLE'}
+                                {isSel ? 'TRAINED, THEN WAITED' : 'IDLE ALL ROUND'}
                               </span>
                             </td>
                             <td className="num">{isSel ? `${nomWork.toFixed(2)} s` : '0.00 s'}</td>

@@ -59,7 +59,7 @@ export function ParetoChart({
   if (!visible.length) {
     return (
       <div className="empty-chart">
-        Activate at least one policy filter above to plot the Accuracy–Carbon trade-off plate.
+        Turn on at least one rule above to show the chart.
       </div>
     );
   }
@@ -107,7 +107,7 @@ export function ParetoChart({
 
   return (
     <>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Accuracy vs Modeled Carbon Pareto plot">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Accuracy vs simulated CO₂ for each rule">
         <defs>
           <pattern id="plateGrid" width="28" height="28" patternUnits="userSpaceOnUse">
             <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#EBE6DC" strokeWidth="0.75" />
@@ -136,11 +136,11 @@ export function ParetoChart({
         })}
 
         <text x={P.l + 10} y={P.t + 16} fill="#57534A" fontSize="10.5" fontFamily="var(--mono)">
-          ← LOWER CO₂ EMISSIONS (g) · HIGHER HELD-OUT ACCURACY (%) ↑
+          BEST CORNER: TOP-LEFT (HIGH ACCURACY, LOW CO₂)
         </text>
 
         <text x={W / 2} y={H - 2} textAnchor="middle" fill="#3F3D37" fontSize="11" fontWeight="600">
-          Modeled Cumulative Carbon Emissions (g CO₂)
+          Total CO₂ over the run, g (simulated)
         </text>
 
         {paretoD && (
@@ -198,13 +198,13 @@ export function ParetoChart({
                     x: e.clientX,
                     y: e.clientY,
                     title: m.label,
-                    subtitle: isPareto ? 'PARETO FRONTIER' : 'DOMINATED',
+                    subtitle: isPareto ? 'BEST TRADE-OFF: NO RULE BEATS IT ON BOTH' : 'ANOTHER RULE BEATS IT ON BOTH',
                     rows: [
                       { label: 'Final Accuracy', value: `${(Number(s.final_accuracy_mean) * 100).toFixed(2)}%`, color: m.color },
-                      { label: 'Modeled CO₂', value: `${Number(s.mean_total_CO2_g_MODELED).toFixed(3)} g` },
-                      { label: 'Modeled Latency', value: `${Number(s.mean_total_seconds_MODELED).toFixed(1)} s` },
-                      { label: 'Modeled Energy', value: `${Number(s.mean_total_Wh_MODELED).toFixed(3)} Wh` },
-                      { label: 'Target Hit Rate', value: `${(Number(s.target_hit_rate) * 100).toFixed(0)}%` },
+                      { label: 'CO₂ (simulated)', value: `${Number(s.mean_total_CO2_g_MODELED).toFixed(3)} g` },
+                      { label: 'Training time (simulated)', value: `${Number(s.mean_total_seconds_MODELED).toFixed(1)} s` },
+                      { label: 'Energy (simulated)', value: `${Number(s.mean_total_Wh_MODELED).toFixed(3)} Wh` },
+                      { label: 'Reached target', value: `${(Number(s.target_hit_rate) * 100).toFixed(0)}%` },
                     ],
                   })
                 }
@@ -289,7 +289,7 @@ export function TrajectoryChart({
   if (!allPts.length) {
     return (
       <div className="empty-chart">
-        Activate at least one policy filter above to inspect round-by-round trajectories.
+        Turn on at least one rule above to show the chart.
       </div>
     );
   }
@@ -344,8 +344,8 @@ export function TrajectoryChart({
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Round trajectory chart for ${metricKey}`}>
         <defs>
           <linearGradient id="rlAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#D9381E" stopOpacity="0.16" />
-            <stop offset="100%" stopColor="#D9381E" stopOpacity="0.01" />
+            <stop offset="0%" stopColor="#0F766E" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#0F766E" stopOpacity="0.01" />
           </linearGradient>
         </defs>
 
@@ -520,7 +520,7 @@ export function MorlSweepChart({ morl }: { morl: MorlSweepPoint[] }) {
 
   return (
     <>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="MORL Preference Scalarization Sweep">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="RL goal mixes: results">
         <rect x={P.l} y={P.t} width={iw} height={ih} fill="#FAF8F3" stroke="#CFC9BC" strokeWidth="1" />
         {[0, 1, 2, 3, 4].map((i) => {
           const vy = minY + (maxY - minY) * (i / 4);
@@ -590,12 +590,12 @@ export function MorlSweepChart({ morl }: { morl: MorlSweepPoint[] }) {
                     x: e.clientX,
                     y: e.clientY,
                     title: m.preference_name,
-                    subtitle: m.pareto_optimal ? 'NONDOMINATED' : 'SWEEP POINT',
+                    subtitle: m.pareto_optimal ? 'BEST TRADE-OFF' : 'OUTPERFORMED',
                     rows: [
                       { label: 'Final Accuracy', value: `${(m.final_accuracy * 100).toFixed(1)}%`, color: col },
                       { label: 'Total CO₂', value: `${m.total_co2_g.toFixed(3)} g` },
                       { label: 'Total Latency', value: `${m.total_latency_s.toFixed(1)} s` },
-                      { label: 'Gini Fairness', value: m.participation_gini.toFixed(3) },
+                      { label: 'Unevenness (0 = fair)', value: m.participation_gini.toFixed(3) },
                     ],
                   })
                 }

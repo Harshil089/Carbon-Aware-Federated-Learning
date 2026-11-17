@@ -54,7 +54,14 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
           body: JSON.stringify(body),
         };
   const res = await fetch(path, opts);
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(
+      'The simulation server is not running, so live runs are unavailable. Start it with START_DEMO.sh (macOS/Linux) or START_DEMO.bat (Windows), then reload this page.',
+    );
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data as T;
 }
@@ -187,7 +194,7 @@ export default function App() {
         syncSettingsFromResults(res);
       }
     } catch (e) {
-      setEngine((prev) => ({ ...prev, status: 'failed', message: 'Engine unavailable' }));
+      setEngine((prev) => ({ ...prev, status: 'failed', message: 'Server not running' }));
       setError(e instanceof Error ? e.message : 'Unable to reach engine');
     }
   }, [syncSettingsFromResults]);
@@ -351,14 +358,14 @@ export default function App() {
         ? 'failed'
         : 'ready';
   const badgeText = offline
-    ? 'Offline Archive'
+    ? 'Saved results'
     : engine.status === 'running'
       ? `Running · ${engine.progress}%`
       : engine.status === 'complete'
-        ? 'Run Complete'
+        ? 'Run complete'
         : engine.status === 'failed'
-          ? 'Run Failed'
-          : 'Engine Ready';
+          ? engine.message === 'Server not running' ? 'Server offline' : 'Run failed'
+          : 'Ready';
 
   const navItems: {
     id: ViewId;
@@ -374,50 +381,50 @@ export default function App() {
     {
       id: 'overview',
       num: '01',
-      label: 'Policy & Pareto Matrix',
-      desc: '4-policy trade-off & trajectories',
-      heading: 'Empirical Policy Benchmarks & Pareto Trade-Off',
-      plateCode: 'PLATE 01 · BENCHMARK',
-      sub: 'Compare held-out accuracy, synchronous round latency, energy (Wh), and modeled carbon (g CO₂) across the four policies.',
-      theoryTitle: 'Analytical Mechanism: Synchronous Straggler Penalty vs. Subset Diversity',
+      label: 'Results',
+      desc: 'Compare 4 ways of picking PCs',
+      heading: 'Which way of picking PCs works best?',
+      plateCode: 'MAIN SIMULATION',
+      sub: 'Four rules for choosing which PCs train each round, compared on accuracy, total time, electricity (Wh) and CO₂ (g). All time, energy and CO₂ figures are simulated.',
+      theoryTitle: 'Why the rules differ',
       theoryBody:
-        'Selecting all 4 clients (FedAvg · All 4) maximizes per-round sample diversity but suffers straggler latency and high CO₂ because fast clients idle while PC1 finishes. Fastest 2 minimizes round time, while Lowest Energy 2 reduces active watts. Q-Learning RL learns a dynamic subset policy (2–4 clients) conditioned on (training phase, accuracy bucket).',
+        'Using all 4 PCs sees the most varied data, but every round waits for the slowest PC (PC1) while the others sit idle and draw power. "Fastest 2" finishes rounds quickly, and "Lowest-power 2" uses the least electricity, but both see less varied data. The RL picker learns, from how training is going, when to use 2, 3 or 4 PCs.',
     },
     {
       id: 'pipeline',
       num: '02',
-      label: '8-Layer MORL Pipeline',
-      desc: 'fl_pipeline/ & 10k telemetry',
-      heading: 'Software-Driven 8-Layer FL + MORL Architecture',
-      plateCode: 'PLATE 02 · PIPELINE',
-      sub: 'Execute fl_pipeline/ live with configurable Dirichlet(α) partitions, 10k telemetry calibration, 7 schedulers, and MORL preference sweeps.',
-      theoryTitle: 'Analytical Mechanism: Modular 8-Layer Federated + Multi-Objective RL Stack',
+      label: 'Extended simulator',
+      desc: 'Separate model · 7 rules',
+      heading: 'Extended simulator: more rules, network and fairness',
+      plateCode: 'SEPARATE EXPERIMENT',
+      sub: 'A second, more detailed simulator (fl_pipeline/). It adds network transfer times, 7 picking rules and a fairness score. Its numbers are not comparable with the Results page.',
+      theoryTitle: 'How the extended simulator works',
       theoryBody:
-        'Partitions synthetic Gaussian data via IID or Dirichlet(α) distributions (Layer 1), calibrates 4 clients from the 10,000-row telemetry CSV (Layer 2), models parallel network latency and per-client carbon intensity (Layers 3–4), evaluates 7 schedulers with Gini fairness (Layers 5–6), and sweeps MORL preference weights to extract the 3D Pareto frontier (Layers 7–8).',
+        'It splits synthetic data unevenly across 4 PCs, sets each PC’s hardware from a generated 10,000-row profile (based on the meter readings), adds download/upload time and per-PC grid carbon, then compares 7 picking rules. It also tries RL agents that weigh accuracy, time, CO₂ and fairness differently, and shows which settings give the best trade-offs.',
     },
     {
       id: 'replay',
       num: '03',
-      label: 'Topology Replay',
-      desc: 'Round-by-round hub & spoke',
-      heading: 'Synchronous Hub-and-Spoke Topology & Round Replay',
-      plateCode: 'PLATE 03 · TOPOLOGY',
-      sub: 'Step through individual training rounds to inspect scheduled uplinks (PC1–PC4), standby idle nodes, and per-round energy accounting.',
-      theoryTitle: 'Analytical Mechanism: Parallel Uplink Synchronization & Idle Power Tail',
+      label: 'Round replay',
+      desc: 'Which PCs trained each round',
+      heading: 'Replay a training run, round by round',
+      plateCode: 'MAIN SIMULATION',
+      sub: 'Step through the rounds of one run to see which PCs were picked, which waited, and how much time and energy each round used.',
+      theoryTitle: 'What happens in one round',
       theoryBody:
-        'In synchronous FedAvg, selected clients train in parallel and transmit weight updates to the coordinator. Round duration equals the slowest selected client (training + network) plus 0.45 s aggregation. Unselected or early-finishing clients still draw idle power (7–13 W) until the round ends, while the coordinator draws 30 W continuously.',
+        'Picked PCs train at the same time, then send their model updates to the coordinator, which combines them (0.45 s). A round lasts as long as the slowest picked PC. PCs that were not picked, or finished early, still draw idle power (7–13 W) until the round ends, and the coordinator draws 30 W the whole time.',
     },
     {
       id: 'specs',
       num: '04',
-      label: 'Calibration & Logs',
-      desc: 'PC1 meter, sensitivity & stdout',
-      heading: 'Physical Meter Calibration, Sensitivity & Execution Logs',
-      plateCode: 'PLATE 04 · PROVENANCE',
-      sub: 'Audit exact hyperparameters, PC1 physical meter anchor, per-client grid carbon intensities, Monte Carlo sensitivity, and live Python stdout.',
-      theoryTitle: 'Analytical Mechanism: Physical Measurement Anchor & Scenario Sensitivity',
+      label: 'Settings & sources',
+      desc: 'What is measured vs. estimated',
+      heading: 'Settings, data sources and uncertainty',
+      plateCode: 'MAIN SIMULATION',
+      sub: 'Exact settings behind the results, which hardware numbers are measured and which are estimated, how much the CO₂ result moves if estimates are off, and the raw run log.',
+      theoryTitle: 'Measured vs. estimated',
       theoryBody:
-        'PC1 (0.065 kWh over 190 min = 20.53 W mean power), PC2 and PC3 have physical wall-meter readings; PC4 is an estimated profile. PC4 speed/power ratios, network transfer delays, and ±35% power / ±30% speed Monte Carlo sensitivity quantiles are modeled research scenarios logged with deterministic random seeds.',
+        'Active power for PC1 (0.065 kWh over 190 min = 20.53 W), PC2 and PC3 comes from wall-plug meter readings; PC4 is estimated. Speeds, idle power and network delays are estimates for all PCs. The uncertainty table shows how CO₂ changes if PC2–PC4 power is off by up to ±35% and speed by up to ±30%.',
     },
   ];
   const activeIdx = Math.max(0, navItems.findIndex((n) => n.id === view));
@@ -439,10 +446,10 @@ export default function App() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="app-frame">
-        <aside className="nav-rail" aria-label="Monograph plate navigation">
+        <aside className="nav-rail" aria-label="Console sections">
           <div
             className="brand"
-            data-tip="Workbench identity header for the 4-plate Federated Computing Lab. Connects the React UI to the FastAPI simulation backend and precomputed baseline artifacts."
+            data-tip="Federated Computing Lab: a simulation of choosing which computers join each round of federated training, to save time and CO₂."
           >
             <div className="emblem" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -456,11 +463,11 @@ export default function App() {
             </div>
             <div>
               <h1>Federated Computing Lab</h1>
-              <p>MORL Workbench · 4 Plates</p>
+              <p>Experiment console</p>
             </div>
           </div>
 
-          <nav className="nav-steps" role="tablist" aria-label="Ordered workbench plates">
+          <nav className="nav-steps" role="tablist" aria-label="Console sections">
             {navItems.map((item) => {
               const active = view === item.id;
               return (
@@ -470,7 +477,7 @@ export default function App() {
                   role="tab"
                   aria-selected={active}
                   className={`nav-step ${active ? 'active' : ''}`}
-                  data-tip={`Plate ${item.num} (${item.label}): ${item.desc}. Switches the active route to /${item.id === 'overview' ? 'overview' : item.id} and renders its corresponding React plate.`}
+                  data-tip={`${item.label}: ${item.desc}.`}
                   onClick={() => navigate(item.id)}
                 >
                   {active && (
@@ -493,9 +500,9 @@ export default function App() {
           <div className="rail-provenance">
             <div
               className="rp-row"
-              data-tip="Displays the physical power meter anchor measured on PC1 (20.53 W, 0.065 kWh). Used by the Python energy model to ground simulated client wattage."
+              data-tip="PC1 used 0.065 kWh over 190 minutes on a wall-plug meter (20.53 W average). Other PCs’ power is expressed relative to this."
             >
-              <span>PC1 Meter Anchor</span>
+              <span>PC1 meter reading</span>
               <strong className="num">20.53 W (0.065 kWh)</strong>
             </div>
             <div
@@ -507,9 +514,9 @@ export default function App() {
             </div>
             <div
               className="rp-row"
-              data-tip="Shows the default electricity grid carbon intensity (0.675 kg CO₂/kWh). Multiplied by modeled kWh in the backend to compute per-round carbon emissions."
+              data-tip="How much CO₂ the electricity grid emits per kWh (Indian grid average). Electricity used × this factor = CO₂."
             >
-              <span>Default Grid Factor</span>
+              <span>Grid CO₂ per kWh</span>
               <strong className="num">0.675 kg CO₂/kWh</strong>
             </div>
           </div>
@@ -518,14 +525,14 @@ export default function App() {
             <button
               type="button"
               className="btn-tune"
-              data-tip="Returns from the workbench plates to the Monograph Cover landing view. Updates browser history to the root route without clearing loaded results."
+              data-tip="Back to the project overview page. Loaded results are kept."
               onClick={() => navigate('landing')}
             >
-              ← Monograph Cover
+              ← Project overview
             </button>
             <span
               className={`status-pill ${badgeClass}`}
-              data-tip="Live connection and simulation status indicator. Polls /api/status to reflect idle, running, completed, or offline archive mode."
+              data-tip="Whether a simulation is running, finished, failed, or whether you are viewing saved results without the simulation server."
             >
               <motion.span
                 className="status-dot"
@@ -536,7 +543,7 @@ export default function App() {
             </span>
             <a
               className="btn-pill"
-              data-tip="Downloads the current run's CSVs, JSON results, and generated charts. Requests /api/export?run=... from the backend or falls back to static CSV offline."
+              data-tip="Download the results shown here: tables (CSV), settings (JSON) and charts."
               href={
                 offline
                   ? 'comparison_SIMULATION.csv'
@@ -563,19 +570,19 @@ export default function App() {
                 type="button"
                 className="btn-tune"
                 disabled={activeIdx <= 0}
-                data-tip="Navigates to the previous workbench plate in sequence. Updates the active view state and browser URL."
+                data-tip="Go to the previous section."
                 onClick={() => navigate(navItems[Math.max(0, activeIdx - 1)].id)}
               >
-                ← Prev Plate
+                ← Previous
               </button>
               <button
                 type="button"
                 className="btn-tune"
                 disabled={activeIdx >= navItems.length - 1}
-                data-tip="Navigates to the next workbench plate in sequence. Updates the active view state and browser URL."
+                data-tip="Go to the next section."
                 onClick={() => navigate(navItems[Math.min(navItems.length - 1, activeIdx + 1)].id)}
               >
-                Next Plate →
+                Next →
               </button>
             </div>
           </div>
@@ -588,7 +595,7 @@ export default function App() {
 
           {view === 'overview' && (
             <form className="deck" onSubmit={handleRun}>
-              <div className="step-kicker num">STEP 1 · CONFIGURE &amp; RUN SIMULATION</div>
+              <div className="step-kicker num">OPTIONAL · RUN YOUR OWN SIMULATION (RESULTS BELOW ARE ALREADY LOADED)</div>
               <div className="deck-main">
                 <div className="deck-left">
                   <div className="seg" role="group" aria-label="Simulation presets">
@@ -596,7 +603,7 @@ export default function App() {
                       type="button"
                       className={preset === 'quick' ? 'active' : ''}
                       disabled={running || offline}
-                      data-tip="Loads the fast Quick Demo parameter preset (fewer rounds and episodes). Updates local form state before posting to /api/run."
+                      data-tip="Smaller settings that finish in seconds. Good for a first try."
                       onClick={() => applyPreset('quick')}
                     >
                       Quick demo
@@ -605,7 +612,7 @@ export default function App() {
                       type="button"
                       className={preset === 'full' ? 'active' : ''}
                       disabled={running || offline}
-                      data-tip="Loads the Full Experiment parameter preset (20 rounds, 130 episodes). Matches the default baseline run configuration sent to /api/run."
+                      data-tip="The settings used for the published results (20 rounds, 130 RL training episodes)."
                       onClick={() => applyPreset('full')}
                     >
                       Full experiment
@@ -615,9 +622,9 @@ export default function App() {
                   <div className="inline-params">
                     {(
                       [
-                        ['rounds', 'Rounds', 1, 100, 1, 'Sets the number of federated aggregation rounds per trial. Sent to the Python simulator to bound the outer FL training loop.'],
-                        ['episodes', 'Episodes', 1, 500, 1, 'Sets the number of Q-Learning training episodes before policy evaluation. Controls how many episodes the RL agent explores client-subset actions.'],
-                        ['target', 'Target %', 0.01, 100, 'any', 'Sets the target validation accuracy percentage for time-to-target metrics. Normalized to [0, 1] and evaluated by the Python backend per round.'],
+                        ['rounds', 'Rounds', 1, 100, 1, 'How many training rounds each run has. In each round, the picked PCs train and the coordinator combines their updates.'],
+                        ['episodes', 'RL practice runs', 1, 500, 1, 'How many practice runs the RL picker gets to learn which PCs to choose. More runs, better choices, slower.'],
+                        ['target', 'Target accuracy %', 0.01, 100, 'any', 'Accuracy goal. Used to report how often, and how fast, each rule reaches it.'],
                       ] as const
                     ).map(([key, label, min, max, step, tip]) => (
                       <div className="chip-field" key={key} data-tip={tip}>
@@ -642,7 +649,7 @@ export default function App() {
                   <button
                     type="button"
                     className="btn-tune"
-                    data-tip="Toggles the advanced hyperparameter drawer below the control deck. Exposes repeat trials, sensitivity samples, local epochs, learning rate, seed, and reward weights."
+                    data-tip="Show advanced settings: repeats, uncertainty samples, training settings, random seed and how much the RL picker cares about time vs. CO₂."
                     onClick={() => setDrawerOpen((o) => !o)}
                   >
                     <SlidersHorizontal size={13} />
@@ -653,7 +660,7 @@ export default function App() {
                     className="btn-run"
                     disabled={running || offline}
                     whileTap={{ scale: 0.98 }}
-                    data-tip="Submits the current simulation parameters to POST /api/run. Starts a background Python simulation and streams progress to the UI."
+                    data-tip="Run the simulation with these settings. Needs the simulation server (START_DEMO) running."
                   >
                     <Play size={13} />
                     {running ? 'Running…' : offline ? 'Offline' : 'Run Simulation'}
@@ -662,7 +669,7 @@ export default function App() {
                     type="button"
                     className="btn-stop"
                     disabled={!running || offline}
-                    data-tip="Aborts the active simulation run. Sends POST /api/stop to terminate the running Python subprocess."
+                    data-tip="Stop the running simulation."
                     onClick={handleStop}
                   >
                     <Square size={12} /> Stop
@@ -681,13 +688,13 @@ export default function App() {
                   >
                     {(
                       [
-                        ['repeats', 'Repeat trials', 1, 20, 1, 'Number of independent Monte Carlo trials per policy. Averaged by the backend to compute mean and standard deviation metrics.'],
-                        ['sensitivity', 'Sensitivity samples', 1, 100, 1, 'Number of grid carbon and hardware sensitivity samples evaluated. Drives the scenario sensitivity table in Plate 04.'],
-                        ['local_epochs', 'Local epochs', 1, 20, 1, 'Local SGD epochs each selected client runs per federated round. Directly scales per-round compute time and energy in the Python model.'],
-                        ['learning_rate', 'Learning rate (η)', 0.001, 2, 0.001, 'Step size η for local client gradient updates. Passed to the federated trainer to control convergence speed and stability.'],
-                        ['seed', 'Random seed', 0, 2147483647, 1, 'Deterministic PRNG seed for data partitioning and RL exploration. Ensures reproducible simulation runs across identical parameter sets.'],
-                        ['latency_weight', 'Latency penalty (w_lat)', 0, 100, 0.001, 'Reward penalty weight w_lat on round latency in Q-Learning. Higher values steer the RL policy toward faster client subsets.'],
-                        ['carbon_weight', 'Carbon penalty (w_co2)', 0, 100, 0.01, 'Reward penalty weight w_co2 on modeled CO₂ emissions in Q-Learning. Higher values steer the RL policy toward lower-carbon client subsets.'],
+                        ['repeats', 'Repeat runs', 1, 20, 1, 'How many times each rule is run with random timing variation. Results are averaged.'],
+                        ['sensitivity', 'Uncertainty samples', 1, 100, 1, 'How many what-if variations of PC power and speed to test. Shown in the uncertainty table under Settings & sources.'],
+                        ['local_epochs', 'Local epochs', 1, 20, 1, 'How many passes over its own data each picked PC makes per round. More passes take more time and energy.'],
+                        ['learning_rate', 'Learning rate (η)', 0.001, 2, 0.001, 'How big each training step is. Too high is unstable, too low is slow.'],
+                        ['seed', 'Random seed', 0, 2147483647, 1, 'Same seed and settings give exactly the same results.'],
+                        ['latency_weight', 'Time penalty', 0, 100, 0.001, 'How much the RL picker is punished for slow rounds. Higher means it favours faster PCs.'],
+                        ['carbon_weight', 'CO₂ penalty', 0, 100, 0.01, 'How much the RL picker is punished for CO₂. Higher means it favours lower-power PCs.'],
                       ] as const
                     ).map(([key, label, min, max, step, tip]) => (
                       <div className="drawer-field" key={key} data-tip={tip}>
@@ -711,7 +718,7 @@ export default function App() {
 
               <div
                 className="deck-progress"
-                data-tip="Displays live simulation progress percentage and status messages. Polled from /api/status while the Python backend executes."
+                data-tip="Progress of the running simulation."
               >
                 <div className="p-track">
                   <motion.div
@@ -742,25 +749,25 @@ export default function App() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="step-kicker num">STEP 2 · KEY TAKEAWAY</div>
-                <div className="editorial-strip" aria-label="Empirical summary ledger">
+                <div className="step-kicker num">KEY RESULTS (SIMULATED)</div>
+                <div className="editorial-strip" aria-label="Key results">
                   <div
                     className="rib-cell lead"
-                    data-tip="Highlights the Q-Learning RL policy's final mean accuracy and CO₂ savings versus FedAvg All 4. Computed from the active simulation's summary JSON."
+                    data-tip="Final accuracy of the RL picker, and how much CO₂ it saved compared with using all 4 PCs every round."
                   >
-                    <span className="rib-label">Q-Learning RL Outcome</span>
+                    <span className="rib-label">RL picker</span>
                     <b className="rib-val num">
                       {kpis?.rl ? `${(Number(kpis.rl.final_accuracy_mean) * 100).toFixed(1)}%` : '—'}
                     </b>
                     <span className="rib-sub num">
-                      {kpis?.rlCo2Save ? `−${kpis.rlCo2Save}% CO₂ vs. FedAvg All 4` : 'Dynamic 2–4 client subset'}
+                      {kpis?.rlCo2Save ? `−${kpis.rlCo2Save}% CO₂ vs. all 4 PCs` : 'Picks 2–4 PCs each round'}
                     </span>
                   </div>
                   <div
                     className="rib-cell"
-                    data-tip="Shows the highest final mean accuracy achieved across all four evaluated policies. Derived by ranking policy summaries in the loaded results."
+                    data-tip="The best final accuracy of the 4 rules, averaged over repeat runs. Differences under ~1 point are small."
                   >
-                    <span className="rib-label">Highest Mean Accuracy</span>
+                    <span className="rib-label">Best accuracy</span>
                     <b className="rib-val num">
                       {kpis ? `${(Number(kpis.bestAcc.final_accuracy_mean) * 100).toFixed(1)}%` : '—'}
                     </b>
@@ -770,9 +777,9 @@ export default function App() {
                   </div>
                   <div
                     className="rib-cell"
-                    data-tip="Shows the lowest modeled cumulative CO₂ emissions across all policies. Calculated from modeled client energy and grid carbon intensity."
+                    data-tip="The lowest total CO₂ of the 4 rules over a whole run (simulated)."
                   >
-                    <span className="rib-label">Lowest Modeled Carbon</span>
+                    <span className="rib-label">Lowest CO₂</span>
                     <b className="rib-val num">
                       {kpis ? `${Number(kpis.lowCo2.mean_total_CO2_g_MODELED).toFixed(2)} g` : '—'}
                     </b>
@@ -782,14 +789,14 @@ export default function App() {
                   </div>
                   <div
                     className="rib-cell"
-                    data-tip="Shows the lowest modeled cumulative round latency across all policies, alongside wall-clock execution time. Aggregated from per-round simulated seconds."
+                    data-tip="The shortest total training time of the 4 rules (simulated). Below it: how long your computer took to run the simulation itself."
                   >
-                    <span className="rib-label">Lowest Cumulative Latency</span>
+                    <span className="rib-label">Shortest training time</span>
                     <b className="rib-val num">
                       {kpis ? `${Number(kpis.lowLat.mean_total_seconds_MODELED).toFixed(1)} s` : '—'}
                     </b>
                     <span className="rib-sub num">
-                      {results ? `Wall exec: ${Number(results.parameters.execution_wall_seconds).toFixed(2)} s` : 'Loading…'}
+                      {results ? `Simulation took ${Number(results.parameters.execution_wall_seconds).toFixed(2)} s` : 'Loading…'}
                     </span>
                   </div>
                 </div>
@@ -800,8 +807,8 @@ export default function App() {
                     <div className="panel-head">
                       <div>
                         <div className="head-inline">
-                          <h2>Accuracy–Carbon Pareto &amp; Trajectories</h2>
-                          <span className="plate-tag num">FIG. 1.1–1.5</span>
+                          <h2>Accuracy vs. CO₂, and progress per round</h2>
+                          <span className="plate-tag num">CHARTS</span>
                         </div>
                         <p className="panel-sub">
                           {r
@@ -812,11 +819,11 @@ export default function App() {
                       <div className="chart-tabs" role="tablist" aria-label="Chart selector">
                         {(
                           [
-                            ['tradeoff', 'Pareto', 'Switches to the Accuracy vs. Modeled CO₂ Pareto scatter plot. Renders summary policy points from results.summary via ParetoChart.'],
-                            ['accuracy', 'Accuracy', 'Switches to the per-round validation accuracy trajectory chart. Plots results.rows accuracy against the target threshold.'],
-                            ['latency', 'Latency', 'Switches to the cumulative modeled latency trajectory chart. Plots cum_latency across federated rounds from results.rows.'],
-                            ['carbon', 'Carbon', 'Switches to the cumulative modeled CO₂ trajectory chart. Plots cum_co2 across federated rounds from results.rows.'],
-                            ['png', 'PNGs', 'Switches to static Matplotlib PNG figures generated by the Python backend. Loads images from results.artifact_prefix.'],
+                            ['tradeoff', 'Trade-off', 'Each rule as one dot: accuracy vs. total CO₂. The dashed line joins rules that no other rule beats on both.'],
+                            ['accuracy', 'Accuracy', 'Accuracy after each round, for each rule.'],
+                            ['latency', 'Latency', 'Total training time so far, after each round.'],
+                            ['carbon', 'Carbon', 'Total CO₂ so far, after each round.'],
+                            ['png', 'Images', 'The same charts as saved image files.'],
                           ] as const
                         ).map(([id, label, tip]) => (
                           <button
@@ -841,7 +848,7 @@ export default function App() {
                             key={k}
                             type="button"
                             className={`ppill ${hiddenPolicies.has(k) ? 'muted' : ''}`}
-                            data-tip={`Toggles ${m.label} visibility in the active SVG chart. Updates the local hiddenPolicies set without re-fetching backend data.`}
+                            data-tip={`Show or hide ${m.label} (${m.strategy.toLowerCase()}).`}
                             onClick={() => togglePolicy(k)}
                           >
                             <i style={{ background: m.color }} />
@@ -906,11 +913,11 @@ export default function App() {
                     <div className="panel-head">
                       <div>
                         <div className="head-inline">
-                          <h2>4-Policy Comparison Matrix</h2>
-                          <span className="plate-tag num">TABLE 1.1</span>
+                          <h2>The 4 rules side by side</h2>
+                          <span className="plate-tag num">AVERAGE OF REPEAT RUNS</span>
                         </div>
                         <p className="panel-sub">
-                          Mean over {r?.repeats ?? 5} trials vs. full-participation baseline (FedAvg · All 4).
+                          Average of {r?.repeats ?? 5} repeat runs. CO₂ change is compared with using all 4 PCs.
                         </p>
                       </div>
                     </div>
@@ -918,11 +925,11 @@ export default function App() {
                       <table className="compact-matrix-table" aria-label="Policy comparison">
                         <thead>
                           <tr>
-                            <th data-tip="Client selection policy name and short strategy tag. Maps backend policy IDs to display labels via POLICY_META.">Policy</th>
-                            <th data-tip="Final mean validation accuracy across repeat trials. Computed from final_accuracy_mean in results.summary.">Acc</th>
-                            <th data-tip="Mean cumulative modeled latency in seconds. Aggregated from mean_total_seconds_MODELED in results.summary.">Latency</th>
-                            <th data-tip="Mean cumulative modeled CO₂ emissions in grams and percentage delta vs. FedAvg All 4. Derived from mean_total_CO2_g_MODELED.">CO₂ (Δ All-4)</th>
-                            <th data-tip="Fraction of repeat trials that reached the target accuracy threshold. Read from target_hit_rate in results.summary.">Hit</th>
+                            <th data-tip="The rule for choosing which PCs train each round.">Rule</th>
+                            <th data-tip="Final accuracy on test data the model never trained on.">Accuracy</th>
+                            <th data-tip="Total training time for the whole run, in seconds (simulated).">Time</th>
+                            <th data-tip="Total CO₂ for the whole run in grams (simulated), and the change compared with using all 4 PCs.">CO₂ (vs. all 4)</th>
+                            <th data-tip="Share of repeat runs that reached the target accuracy.">Reached target</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -942,7 +949,7 @@ export default function App() {
                               <tr
                                 key={s.policy}
                                 className={isRl ? 'rl-row' : ''}
-                                data-tip={`${m.label} (${m.strategy || m.short}): ${accPct.toFixed(1)}% accuracy, ${thisCo2.toFixed(2)} g CO₂. Summarizes this policy's multi-trial outcome from the Python results JSON.`}
+                                data-tip={`${m.label} (${m.strategy || m.short}): ${accPct.toFixed(1)}% accuracy, ${thisCo2.toFixed(2)} g CO₂, averaged over repeat runs.`}
                               >
                                 <td>
                                   <div className="policy-cell-main">
@@ -1021,19 +1028,19 @@ export default function App() {
                     <div className="spec-grid">
                       <article
                         className="spec-card"
-                        data-tip="Displays execution hyperparameters for the active run. Read from results.parameters.run in the backend JSON."
+                        data-tip="Settings used to produce the results on this page."
                       >
                         <div className="head-inline">
-                          <h3>Run Settings</h3>
-                          <span className="plate-tag num">EXECUTION</span>
+                          <h3>Run settings</h3>
+                          <span className="plate-tag num">RUN</span>
                         </div>
                         <dl>
-                          <div><dt>Federated rounds</dt><dd className="num">{r.rounds}</dd></div>
-                          <div><dt>RL training episodes</dt><dd className="num">{r.episodes}</dd></div>
-                          <div><dt>Performance repeats</dt><dd className="num">{r.repeats}</dd></div>
-                          <div><dt>Sensitivity samples</dt><dd className="num">{r.sensitivity}</dd></div>
-                          <div><dt>Comparison target</dt><dd className="num">{(Number(r.target) * 100).toFixed(1)}%</dd></div>
-                          <div><dt>Master random seed</dt><dd className="num">{r.seed}</dd></div>
+                          <div><dt>Training rounds</dt><dd className="num">{r.rounds}</dd></div>
+                          <div><dt>RL practice runs</dt><dd className="num">{r.episodes}</dd></div>
+                          <div><dt>Repeat runs</dt><dd className="num">{r.repeats}</dd></div>
+                          <div><dt>Uncertainty samples</dt><dd className="num">{r.sensitivity}</dd></div>
+                          <div><dt>Target accuracy</dt><dd className="num">{(Number(r.target) * 100).toFixed(1)}%</dd></div>
+                          <div><dt>Random seed</dt><dd className="num">{r.seed}</dd></div>
                         </dl>
                       </article>
 
@@ -1042,16 +1049,16 @@ export default function App() {
                         data-tip="Summarizes the FedAvg classifier architecture and synthetic non-IID dataset split. Read from results.parameters.training."
                       >
                         <div className="head-inline">
-                          <h3>Model &amp; Data</h3>
-                          <span className="plate-tag num">FEDAVG</span>
+                          <h3>Model and data</h3>
+                          <span className="plate-tag num">SYNTHETIC DATA</span>
                         </div>
                         <dl>
-                          <div><dt>Classifier architecture</dt><dd>{t.model}</dd></div>
-                          <div><dt>Clients / classes</dt><dd className="num">{t.clients} / {t.classes}</dd></div>
+                          <div><dt>Model</dt><dd>{t.model}</dd></div>
+                          <div><dt>PCs / classes</dt><dd className="num">{t.clients} / {t.classes}</dd></div>
                           <div><dt>Train / test samples</dt><dd className="num">{t.training_samples} / {t.test_samples}</dd></div>
                           <div><dt>Local epochs / LR (η)</dt><dd className="num">{t.local_epochs} / {t.learning_rate}</dd></div>
                           <div><dt>Features + bias</dt><dd className="num">{t.features} + {t.bias ? 'yes' : 'no'}</dd></div>
-                          <div><dt>Partition distribution</dt><dd>Synthetic non-IID</dd></div>
+                          <div><dt>Data split</dt><dd>Synthetic, different mix per PC</dd></div>
                         </dl>
                       </article>
 
@@ -1060,7 +1067,7 @@ export default function App() {
                         data-tip="Summarizes the FedAvg classifier architecture and synthetic non-IID dataset split. Read from results.parameters.training."
                       >
                         <div className="head-inline">
-                          <h3>Tabular Q-Learning</h3>
+                          <h3>RL picker (Q-learning)</h3>
                           <span className="plate-tag num">RL AGENT</span>
                         </div>
                         <dl>
@@ -1078,16 +1085,16 @@ export default function App() {
                         data-tip="Summarizes the FedAvg classifier architecture and synthetic non-IID dataset split. Read from results.parameters.training."
                       >
                         <div className="head-inline">
-                          <h3>Reward &amp; Cluster</h3>
-                          <span className="plate-tag num">INFRA</span>
+                          <h3>RL goals and hardware model</h3>
+                          <span className="plate-tag num">GOALS</span>
                         </div>
                         <dl>
-                          <div><dt>Accuracy gain weight</dt><dd className="num">{q.accuracy_gain_weight}</dd></div>
-                          <div><dt>Latency / carbon weight</dt><dd className="num">{q.latency_weight} / {q.carbon_weight}</dd></div>
-                          <div><dt>Shortfall penalty</dt><dd className="num">{q.accuracy_shortfall_weight}</dd></div>
-                          <div><dt>Base work / agg time</dt><dd className="num">{infra.settings.synthetic_pc1_train_seconds_per_round} s / {infra.settings.aggregation_seconds_per_round} s</dd></div>
+                          <div><dt>Reward for accuracy gain</dt><dd className="num">{q.accuracy_gain_weight}</dd></div>
+                          <div><dt>Time / CO₂ penalty</dt><dd className="num">{q.latency_weight} / {q.carbon_weight}</dd></div>
+                          <div><dt>Penalty below accuracy floor</dt><dd className="num">{q.accuracy_shortfall_weight}</dd></div>
+                          <div><dt>PC1 training / combine time per round</dt><dd className="num">{infra.settings.synthetic_pc1_train_seconds_per_round} s / {infra.settings.aggregation_seconds_per_round} s</dd></div>
                           <div><dt>Coordinator power draw</dt><dd className="num">{infra.settings.coordinator_power_w} W</dd></div>
-                          <div><dt>Default grid factor</dt><dd className="num">{infra.grid_kg_co2_per_kwh} kg CO₂/kWh</dd></div>
+                          <div><dt>Default grid CO₂ per kWh</dt><dd className="num">{infra.grid_kg_co2_per_kwh} kg CO₂/kWh</dd></div>
                         </dl>
                       </article>
                     </div>
@@ -1096,31 +1103,32 @@ export default function App() {
                       <div className="panel-head">
                         <div>
                           <div className="head-inline">
-                            <h2>Client Hardware &amp; Grid Carbon Intensity Profiles</h2>
-                            <span className="plate-tag num">PC1 PHYSICAL ANCHOR</span>
+                            <h2>The 4 PCs: hardware and power</h2>
+                            <span className="plate-tag num">PC1–3 METERED · PC4 ESTIMATED</span>
                           </div>
                           <p className="panel-sub">
-                            Reference meter reading on PC1: {infra.reference_energy_kwh} kWh over {infra.reference_duration_min} min (
-                            {infra.reference_mean_power_w.toFixed(2)} W mean power).
+                            PC1 meter reading: {infra.reference_energy_kwh} kWh over {infra.reference_duration_min} min (
+                            {infra.reference_mean_power_w.toFixed(2)} W average). PC2 and PC3 power comes from their own meter
+                            readings on a CIFAR-10 test. Idle power and network delay are estimates for all PCs.
                           </p>
                         </div>
                         <a className="btn-pill" href={`${results.artifact_prefix}run_parameters.json`} download>
                           <Download size={13} />
-                          Download run_parameters.json
+                          Download settings (JSON)
                         </a>
                       </div>
                       <div className="scroll">
                         <table>
                           <thead>
                             <tr>
-                              <th data-tip="Client node identifier (PC1–PC4). Maps to hardware profiles in results.parameters.infrastructure.clients.">Client</th>
-                              <th data-tip="System RAM and GPU VRAM capacity per client. Used for cluster hardware characterization.">RAM / VRAM</th>
-                              <th data-tip="Compute speed multiplier relative to PC1 (1.00×). Scales per-round local training duration in the Python simulator.">Speed Ratio</th>
-                              <th data-tip="Active training power draw in Watts, anchored to PC1's 20.53 W meter reading. Multiplied by active time to compute energy.">Active Power</th>
-                              <th data-tip="Assumed idle power draw in Watts while waiting for stragglers. Added to active energy during synchronization.">Idle Power</th>
-                              <th data-tip="Assumed network round-trip delay in seconds. Added to compute time to form per-round latency.">Network Delay</th>
-                              <th data-tip="Electricity grid carbon intensity in kg CO₂/kWh. Multiplied by total kWh to compute per-round CO₂ emissions.">Grid Carbon Intensity (CI)</th>
-                              <th data-tip="Indicates whether power values are physically metered (PC1) or modeled scenarios (PC2–PC4). Enforces measurement provenance.">Provenance Status</th>
+                              <th data-tip="One of the 4 computers in the simulation.">PC</th>
+                              <th data-tip="Memory and graphics-card memory. Shown for reference; training runs on the CPU.">RAM / GPU memory</th>
+                              <th data-tip="How much faster than PC1 this PC trains (PC1 = 1.00×).">Speed vs. PC1</th>
+                              <th data-tip="Power drawn while training.">Training power</th>
+                              <th data-tip="Estimated power drawn while waiting for the round to end.">Idle power (est.)</th>
+                              <th data-tip="Estimated time to send the model update to the coordinator.">Network delay (est.)</th>
+                              <th data-tip="CO₂ emitted per kWh of electricity where this PC is.">Grid CO₂ per kWh</th>
+                              <th data-tip="Whether this PC's training power was measured with a wall-plug meter or estimated.">Training power source</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1130,7 +1138,7 @@ export default function App() {
                                 <tr
                                   key={n.name}
                                   className={n.name === 'PC1' ? 'rl-row' : ''}
-                                  data-tip={`${n.name}: ${n.relative_speed.toFixed(2)}× speed, ${(infra.reference_mean_power_w * n.active_power_ratio_to_PC1).toFixed(2)} W active, ${Number(nodeCi).toFixed(3)} kg CO₂/kWh. Parameterizes this client's latency and energy in the Python simulator.`}
+                                  data-tip={`${n.name}: ${n.relative_speed.toFixed(2)}× speed, ${(infra.reference_mean_power_w * n.active_power_ratio_to_PC1).toFixed(2)} W active, ${Number(nodeCi).toFixed(3)} kg CO₂/kWh. Used to simulate this PC's time and energy.`}
                                 >
                                   <td className="num"><strong>{n.name}</strong></td>
                                   <td className="num">{n.ram_gb} GB / {n.gpu_vram_gb} GB</td>
@@ -1140,8 +1148,8 @@ export default function App() {
                                   <td className="num">{n.network_seconds_assumed} s</td>
                                   <td className="num">{Number(nodeCi).toFixed(3)} kg CO₂/kWh</td>
                                   <td>
-                                    <span className={n.name === 'PC1' ? 'stamp-measured' : 'stamp-modeled'}>
-                                      {n.name === 'PC1' ? 'MEASURED WALL METER' : 'MODELED SCENARIO'}
+                                    <span className={n.status?.startsWith('MEASURED') ? 'stamp-measured' : 'stamp-modeled'}>
+                                      {n.status?.startsWith('MEASURED') ? 'METERED' : 'ESTIMATED'}
                                     </span>
                                   </td>
                                 </tr>
@@ -1157,23 +1165,23 @@ export default function App() {
                         <div className="panel-head">
                           <div>
                             <div className="head-inline">
-                              <h2>Scenario Sensitivity (CO₂ g)</h2>
+                              <h2>How sure is the CO₂ result?</h2>
                               <span className="plate-tag num">±35% POWER · ±30% SPEED</span>
                             </div>
                             <p className="panel-sub">
-                              Monte Carlo quantiles across {r.sensitivity} perturbed hardware scenarios for PC2–PC4.
+                              Total CO₂ (g) when PC2–PC4 power and speed are varied at random, over {r.sensitivity} what-if runs. 90% of runs fall between the low and high values.
                             </p>
                           </div>
                         </div>
                         <div className="scroll">
-                          <table data-tip="Monte Carlo sensitivity quantiles across perturbed PC2–PC4 hardware scenarios. Read from results.sensitivity generated by the backend.">
+                          <table data-tip="If our power and speed estimates are off, CO₂ could land anywhere in this range.">
                             <thead>
                               <tr>
-                                <th>Policy</th>
-                                <th>5th Pct</th>
-                                <th>Median (50th)</th>
-                                <th>95th Pct</th>
-                                <th>Interval Spread</th>
+                                <th>Rule</th>
+                                <th>Low (5%)</th>
+                                <th>Typical</th>
+                                <th>High (95%)</th>
+                                <th>Range</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1213,32 +1221,32 @@ export default function App() {
                         <div className="panel-head">
                           <div>
                             <div className="head-inline">
-                              <h2>Governing Formulas &amp; Reward</h2>
-                              <span className="plate-tag num">EXACT EQUATIONS</span>
+                              <h2>How time, energy and CO₂ are calculated</h2>
+                              <span className="plate-tag num">FORMULAS</span>
                             </div>
                             <p className="panel-sub">
-                              Analytical formulations evaluated per synchronous round.
+                              Applied to every round of the simulation.
                             </p>
                           </div>
                         </div>
                         <div className="specs-equation-list">
                           <div className="eq-block">
                             <div className="eq-head">
-                              <h3>Synchronous Round Latency</h3>
+                              <h3>Round time</h3>
                               <span className="num">EQ. (1)</span>
                             </div>
                             <p className="eq-formula">{infra.latency_formula}</p>
                           </div>
                           <div className="eq-block">
                             <div className="eq-head">
-                              <h3>Cluster Active + Idle + Coordinator Energy</h3>
+                              <h3>Round energy: training + idle + coordinator</h3>
                               <span className="num">EQ. (2)</span>
                             </div>
                             <p className="eq-formula">{infra.energy_formula}</p>
                           </div>
                           <div className="eq-block">
                             <div className="eq-head">
-                              <h3>Carbon Emissions &amp; RL Scalar Reward</h3>
+                              <h3>CO₂, and the RL picker’s score</h3>
                               <span className="num">EQ. (3)</span>
                             </div>
                             <p className="eq-formula">{`${infra.carbon_formula}   ·   R = ${q.reward}`}</p>
@@ -1253,18 +1261,18 @@ export default function App() {
                   <div className="panel-head">
                     <div>
                       <div className="head-inline">
-                        <h2>Python Execution Log (stdout)</h2>
-                        <span className="plate-tag num">LIVE STREAM</span>
+                        <h2>Run log</h2>
+                        <span className="plate-tag num">RAW OUTPUT</span>
                       </div>
-                      <p className="panel-sub">Real-time output from run_project.py subprocess.</p>
+                      <p className="panel-sub">Text output from the simulation (run_project.py), for checking details.</p>
                     </div>
                   </div>
                   <pre
                     ref={logRef}
                     className="log-box"
-                    data-tip="Streams live stdout/stderr execution logs from the Python simulation process. Updated via /api/status polling during active runs."
+                    data-tip="Raw output from the simulation."
                   >
-                    {engine.log.length ? engine.log.join('\n') : 'No simulation has been triggered in this browser session yet. Click "Run Simulation" above to stream live Python execution logs.'}
+                    {engine.log.length ? engine.log.join('\n') : 'No simulation run yet in this session. The results shown are from a saved run; click "Run Simulation" on the Results page to start a new one.'}
                   </pre>
                 </div>
               </motion.section>
@@ -1277,7 +1285,7 @@ export default function App() {
           </div>
 
           <footer className="footer-note">
-            <span>Federated Computing Lab · Synthetic non-IID training data · PC1 physical meter anchor (0.065 kWh / 190 min) · Modeled PC2–PC4 scenarios</span>
+            <span>Federated Computing Lab · Synthetic training data · Time, energy and CO₂ are simulated · Training power metered on PC1–PC3, estimated on PC4</span>
             <span className="num">SEED {r?.seed ?? 42}</span>
           </footer>
         </main>

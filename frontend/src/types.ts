@@ -49,6 +49,7 @@ export interface ClientProfile {
   relative_speed: number;
   active_power_ratio_to_PC1: number;
   idle_power_w_assumed: number;
+  status?: string;
   network_seconds_assumed: number;
   grid_kgco2_per_kwh?: number;
 }
@@ -173,27 +174,27 @@ export interface PipelineResults {
 
 export const POLICY_META: Record<string, { label: string; short: string; strategy: string; color: string }> = {
   Q_learning_RL: {
-    label: 'Q-Learning RL',
-    short: 'RL Subset (2–4)',
-    strategy: 'Dynamic phase/accuracy state policy',
-    color: '#D9381E',
+    label: 'RL picker',
+    short: 'Learns which 2–4 PCs to pick',
+    strategy: 'Reinforcement learning picks PCs each round',
+    color: '#0F766E',
   },
   FedAvg_all4: {
-    label: 'FedAvg · All 4',
-    short: 'All 4 Clients',
-    strategy: 'Full participation (straggler bound)',
-    color: '#1D4ED8',
+    label: 'All 4 (FedAvg)',
+    short: 'Every PC, every round',
+    strategy: 'Standard approach: waits for the slowest PC',
+    color: '#C82D14',
   },
   Fastest2: {
     label: 'Fastest 2',
-    short: 'Fastest 2 (PC3+PC4)',
-    strategy: 'Min round duration heuristic',
-    color: '#B45309',
+    short: 'Always PC3 + PC4',
+    strategy: 'Fixed rule: the 2 fastest PCs',
+    color: '#1D4ED8',
   },
   LowestModelEnergy2: {
-    label: 'Lowest Energy 2',
-    short: 'Low Active W (PC1+PC2)',
-    strategy: 'Min active compute power heuristic',
-    color: '#0F766E',
+    label: 'Lowest-power 2',
+    short: 'Always PC1 + PC2',
+    strategy: 'Fixed rule: the 2 lowest-power PCs',
+    color: '#B45309',
   },
 };
