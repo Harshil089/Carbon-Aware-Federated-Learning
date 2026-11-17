@@ -17,10 +17,10 @@ const STRAGGLER_BARS = [
 ];
 
 const POLICY_POINTS = [
-  { name: 'LowestEnergy2', co2: 6.346, acc: 81.6, color: '#F59E0B', highlight: false },
-  { name: 'Fastest2', co2: 12.063, acc: 82.2, color: '#60A5FA', highlight: false },
-  { name: 'Q_learning_RL', co2: 13.214, acc: 83.4, color: '#10B981', highlight: true },
-  { name: 'FedAvg_all4', co2: 18.196, acc: 83.3, color: '#EF4444', highlight: false },
+  { name: 'LowestEnergy2', co2: 6.346, acc: 81.6, color: '#D97706', highlight: false },
+  { name: 'Fastest2', co2: 12.063, acc: 82.2, color: '#2563EB', highlight: false },
+  { name: 'Q_learning_RL', co2: 13.214, acc: 83.4, color: '#0F766E', highlight: true },
+  { name: 'FedAvg_all4', co2: 18.196, acc: 83.3, color: '#DC2626', highlight: false },
 ];
 
 const HARDWARE_BARS = [
@@ -60,7 +60,7 @@ function SpotlightCard({
         className="lp-spotlight-glow"
         style={{
           opacity: spot.active ? 1 : 0,
-          background: `radial-gradient(360px circle at ${spot.x}px ${spot.y}px, rgba(255,255,255,0.065), transparent 70%)`,
+          background: `radial-gradient(360px circle at ${spot.x}px ${spot.y}px, rgba(17, 24, 39, 0.04), transparent 70%)`,
         }}
         aria-hidden="true"
       />
@@ -174,25 +174,25 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               {/* Links */}
               <line
                 x1="200" y1="123" x2="74" y2="50"
-                stroke={isRl ? '#2E2E2E' : '#EF4444'}
+                stroke={isRl ? '#D4D4D8' : '#DC2626'}
                 strokeWidth={isRl ? 1.5 : 2}
                 strokeDasharray={isRl ? '4 4' : undefined}
               />
               <line
                 x1="200" y1="123" x2="74" y2="196"
-                stroke={isRl ? '#2E2E2E' : '#EF4444'}
+                stroke={isRl ? '#D4D4D8' : '#DC2626'}
                 strokeWidth={isRl ? 1.5 : 2}
                 strokeDasharray={isRl ? '4 4' : undefined}
               />
-              <line x1="200" y1="123" x2="326" y2="50" stroke="#10B981" strokeWidth="2.2" />
-              <line x1="200" y1="123" x2="326" y2="196" stroke="#10B981" strokeWidth="2.2" />
+              <line x1="200" y1="123" x2="326" y2="50" stroke="#0F766E" strokeWidth="2.2" />
+              <line x1="200" y1="123" x2="326" y2="196" stroke="#0F766E" strokeWidth="2.2" />
 
               {/* Animated packets on active links */}
               <motion.circle
                 cx={200}
                 cy={123}
                 r="4"
-                fill="#10B981"
+                fill="#0F766E"
                 animate={{ cx: [200, 326, 200], cy: [123, 50, 123] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
               />
@@ -200,7 +200,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 cx={326}
                 cy={196}
                 r="4"
-                fill="#E5E5E5"
+                fill="#18181B"
                 animate={{ cx: [326, 200, 326], cy: [196, 123, 196] }}
                 transition={{ duration: 2.2, delay: 0.45, repeat: Infinity, ease: 'easeInOut' }}
               />
@@ -208,7 +208,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 cx={200}
                 cy={123}
                 r="4"
-                fill="#EF4444"
+                fill="#DC2626"
                 animate={{
                   cx: [200, 74, 200],
                   cy: [123, 50, 123],
@@ -220,7 +220,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 cx={74}
                 cy={196}
                 r="4"
-                fill="#EF4444"
+                fill="#DC2626"
                 animate={{
                   cx: [74, 200, 74],
                   cy: [196, 123, 196],
@@ -235,17 +235,17 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 cy="123"
                 r="36"
                 fill="none"
-                stroke={isRl ? '#10B981' : '#EF4444'}
+                stroke={isRl ? '#0F766E' : '#DC2626'}
                 strokeOpacity="0.28"
                 strokeWidth="1.5"
                 animate={{ r: [34, 44, 34], strokeOpacity: [0.35, 0, 0.35] }}
                 transition={{ duration: 2.6, repeat: Infinity, ease: 'easeOut' }}
               />
-              <circle cx="200" cy="123" r="32" fill="#242424" stroke="#3A3A3A" strokeWidth="1.5" />
-              <text x="200" y="119" textAnchor="middle" fill="#F5F5F5" fontSize="11" fontWeight="700">
+              <circle cx="200" cy="123" r="32" fill="#18181B" stroke="#27272A" strokeWidth="1.5" />
+              <text x="200" y="119" textAnchor="middle" fill="#FAFAFA" fontSize="11" fontWeight="700">
                 MORL
               </text>
-              <text x="200" y="133" textAnchor="middle" fill="#A3A3A3" fontSize="9" fontFamily="monospace">
+              <text x="200" y="133" textAnchor="middle" fill="#D4D4D8" fontSize="9" fontFamily="monospace">
                 30W Coord
               </text>
 
@@ -253,14 +253,14 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               <g>
                 <rect
                   x="8" y="22" width="128" height="52" rx="8"
-                  fill="#242424"
-                  stroke={isRl ? '#2E2E2E' : '#EF4444'}
+                  fill={isRl ? '#FAFAFA' : '#FEF2F2'}
+                  stroke={isRl ? '#E4E4E7' : '#DC2626'}
                   strokeWidth={isRl ? 1 : 1.5}
                 />
-                <text x="18" y="42" fill={isRl ? '#A3A3A3' : '#F5F5F5'} fontSize="11" fontWeight="600">
+                <text x="18" y="42" fill={isRl ? '#52525B' : '#18181B'} fontSize="11" fontWeight="600">
                   {isRl ? 'PC1 · Standby' : 'PC1 · Bottleneck'}
                 </text>
-                <text x="18" y="59" fill={isRl ? '#737373' : '#FCA5A5'} fontSize="9.5" fontFamily="monospace">
+                <text x="18" y="59" fill={isRl ? '#71717A' : '#B91C1C'} fontSize="9.5" fontFamily="monospace">
                   20.53W · Straggler
                 </text>
               </g>
@@ -269,30 +269,30 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               <g>
                 <rect
                   x="8" y="170" width="128" height="52" rx="8"
-                  fill="#242424"
-                  stroke={isRl ? '#2E2E2E' : '#EF4444'}
+                  fill={isRl ? '#FAFAFA' : '#FEF2F2'}
+                  stroke={isRl ? '#E4E4E7' : '#DC2626'}
                   strokeWidth={isRl ? 1 : 1.5}
                 />
-                <text x="18" y="190" fill={isRl ? '#A3A3A3' : '#F5F5F5'} fontSize="11" fontWeight="600">
+                <text x="18" y="190" fill={isRl ? '#52525B' : '#18181B'} fontSize="11" fontWeight="600">
                   {isRl ? 'PC3 · Skipped' : 'PC3 · Active'}
                 </text>
-                <text x="18" y="207" fill="#FCA5A5" fontSize="9.5" fontFamily="monospace">
+                <text x="18" y="207" fill="#B91C1C" fontSize="9.5" fontFamily="monospace">
                   209.4W · Peak CO₂
                 </text>
               </g>
 
               {/* PC2 */}
               <g>
-                <rect x="264" y="22" width="128" height="52" rx="8" fill="#182722" stroke="#10B981" strokeWidth="1.5" />
-                <text x="274" y="42" fill="#F5F5F5" fontSize="11" fontWeight="600">PC2 · Selected</text>
-                <text x="274" y="59" fill="#6EE7B7" fontSize="9.5" fontFamily="monospace">86.22W · 1.10× speed</text>
+                <rect x="264" y="22" width="128" height="52" rx="8" fill="#F0FDFA" stroke="#0F766E" strokeWidth="1.5" />
+                <text x="274" y="42" fill="#18181B" fontSize="11" fontWeight="600">PC2 · Selected</text>
+                <text x="274" y="59" fill="#0F766E" fontSize="9.5" fontFamily="monospace">86.22W · 1.10× speed</text>
               </g>
 
               {/* PC4 */}
               <g>
-                <rect x="264" y="170" width="128" height="52" rx="8" fill="#182722" stroke="#10B981" strokeWidth="1.5" />
-                <text x="274" y="190" fill="#F5F5F5" fontSize="11" fontWeight="600">PC4 · Selected</text>
-                <text x="274" y="207" fill="#6EE7B7" fontSize="9.5" fontFamily="monospace">35.92W · 1.35× speed</text>
+                <rect x="264" y="170" width="128" height="52" rx="8" fill="#F0FDFA" stroke="#0F766E" strokeWidth="1.5" />
+                <text x="274" y="190" fill="#18181B" fontSize="11" fontWeight="600">PC4 · Selected</text>
+                <text x="274" y="207" fill="#0F766E" fontSize="9.5" fontFamily="monospace">35.92W · 1.35× speed</text>
               </g>
             </svg>
           </SpotlightCard>
@@ -408,25 +408,25 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               </div>
               <svg viewBox="0 0 420 215" className="lp-chart-svg" role="img" aria-label="Policy CO2 vs Accuracy chart">
                 {[40, 80, 120, 160].map((y) => (
-                  <line key={y} x1="48" y1={y} x2="396" y2={y} stroke="#2E2E2E" strokeWidth="1" />
+                  <line key={y} x1="48" y1={y} x2="396" y2={y} stroke="#F4F4F5" strokeWidth="1" />
                 ))}
-                <line x1="48" y1="24" x2="48" y2="170" stroke="#3A3A3A" strokeWidth="1.5" />
-                <line x1="48" y1="170" x2="396" y2="170" stroke="#3A3A3A" strokeWidth="1.5" />
+                <line x1="48" y1="24" x2="48" y2="170" stroke="#D4D4D8" strokeWidth="1.5" />
+                <line x1="48" y1="170" x2="396" y2="170" stroke="#D4D4D8" strokeWidth="1.5" />
 
-                <text x="40" y="34" textAnchor="end" fill="#A3A3A3" fontSize="10" fontFamily="monospace">84%</text>
-                <text x="40" y="82" textAnchor="end" fill="#A3A3A3" fontSize="10" fontFamily="monospace">83%</text>
-                <text x="40" y="130" textAnchor="end" fill="#A3A3A3" fontSize="10" fontFamily="monospace">82%</text>
-                <text x="40" y="172" textAnchor="end" fill="#A3A3A3" fontSize="10" fontFamily="monospace">81%</text>
+                <text x="40" y="34" textAnchor="end" fill="#71717A" fontSize="10" fontFamily="monospace">84%</text>
+                <text x="40" y="82" textAnchor="end" fill="#71717A" fontSize="10" fontFamily="monospace">83%</text>
+                <text x="40" y="130" textAnchor="end" fill="#71717A" fontSize="10" fontFamily="monospace">82%</text>
+                <text x="40" y="172" textAnchor="end" fill="#71717A" fontSize="10" fontFamily="monospace">81%</text>
 
-                <text x="60" y="188" textAnchor="middle" fill="#A3A3A3" fontSize="10" fontFamily="monospace">5g</text>
-                <text x="168" y="188" textAnchor="middle" fill="#A3A3A3" fontSize="10" fontFamily="monospace">10g</text>
-                <text x="276" y="188" textAnchor="middle" fill="#A3A3A3" fontSize="10" fontFamily="monospace">15g</text>
-                <text x="384" y="188" textAnchor="middle" fill="#A3A3A3" fontSize="10" fontFamily="monospace">20g CO₂</text>
+                <text x="60" y="188" textAnchor="middle" fill="#71717A" fontSize="10" fontFamily="monospace">5g</text>
+                <text x="168" y="188" textAnchor="middle" fill="#71717A" fontSize="10" fontFamily="monospace">10g</text>
+                <text x="276" y="188" textAnchor="middle" fill="#71717A" fontSize="10" fontFamily="monospace">15g</text>
+                <text x="384" y="188" textAnchor="middle" fill="#71717A" fontSize="10" fontFamily="monospace">20g CO₂</text>
 
                 <motion.path
                   d="M 89 144 Q 160 112 238 58 L 345 63"
                   fill="none"
-                  stroke="#3A3A3A"
+                  stroke="#D4D4D8"
                   strokeWidth="1.5"
                   strokeDasharray="4 4"
                   initial={{ pathLength: 0 }}
@@ -454,7 +454,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                           cy={cy}
                           r="13"
                           fill="none"
-                          stroke="#10B981"
+                          stroke="#0F766E"
                           strokeWidth="1.5"
                           animate={{ r: [10, 16, 10], opacity: [0.6, 0.15, 0.6] }}
                           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
@@ -474,7 +474,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                         x={labelPos.x}
                         y={labelPos.y}
                         textAnchor={labelPos.anchor}
-                        fill="#F5F5F5"
+                        fill="#18181B"
                         fontSize="10"
                         fontWeight={p.highlight ? '700' : '500'}
                         fontFamily="monospace"
