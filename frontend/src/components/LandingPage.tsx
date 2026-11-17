@@ -118,48 +118,48 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               <motion.circle
                 cx="200"
                 cy="125"
-                r="34"
+                r="36"
                 fill="none"
                 stroke="#C82D14"
                 strokeOpacity="0.28"
                 strokeWidth="1.5"
-                animate={{ r: [32, 42, 32], strokeOpacity: [0.35, 0, 0.35] }}
+                animate={{ r: [35, 45, 35], strokeOpacity: [0.35, 0, 0.35] }}
                 transition={{ duration: 2.6, repeat: Infinity, ease: 'easeOut' }}
               />
-              <circle cx="200" cy="125" r="28" fill="#121316" />
-              <text x="200" y="122" textAnchor="middle" fill="#FAF8F3" fontSize="11" fontWeight="700">
+              <circle cx="200" cy="125" r="32" fill="#121316" />
+              <text x="200" y="121" textAnchor="middle" fill="#FAF8F3" fontSize="11" fontWeight="700">
                 MORL
               </text>
-              <text x="200" y="136" textAnchor="middle" fill="#D5CFC2" fontSize="9.5" fontFamily="monospace">
+              <text x="200" y="135" textAnchor="middle" fill="#D5CFC2" fontSize="9" fontFamily="monospace">
                 30W Coord
               </text>
 
               {/* PC1 Standby */}
               <g>
-                <rect x="14" y="24" width="116" height="52" rx="3" fill="#FAF8F3" stroke="#D5CFC2" />
-                <text x="24" y="44" fill="#57534A" fontSize="11" fontWeight="700">PC1 · Standby</text>
-                <text x="24" y="61" fill="#57534A" fontSize="10" fontFamily="monospace">20.53W · Straggler</text>
+                <rect x="8" y="24" width="128" height="52" rx="3" fill="#FAF8F3" stroke="#D5CFC2" />
+                <text x="18" y="44" fill="#57534A" fontSize="11" fontWeight="700">PC1 · Standby</text>
+                <text x="18" y="61" fill="#57534A" fontSize="9.5" fontFamily="monospace">20.53W · Straggler</text>
               </g>
 
               {/* PC3 Standby */}
               <g>
-                <rect x="14" y="172" width="116" height="52" rx="3" fill="#FAF8F3" stroke="#D5CFC2" />
-                <text x="24" y="192" fill="#57534A" fontSize="11" fontWeight="700">PC3 · Skipped</text>
-                <text x="24" y="209" fill="#C82D14" fontSize="10" fontFamily="monospace">209.4W · High CO₂</text>
+                <rect x="8" y="172" width="128" height="52" rx="3" fill="#FAF8F3" stroke="#D5CFC2" />
+                <text x="18" y="192" fill="#57534A" fontSize="11" fontWeight="700">PC3 · Skipped</text>
+                <text x="18" y="209" fill="#C82D14" fontSize="9.5" fontFamily="monospace">209.4W · Peak CO₂</text>
               </g>
 
               {/* PC2 Selected */}
               <g>
-                <rect x="270" y="24" width="116" height="52" rx="3" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
-                <text x="280" y="44" fill="#121316" fontSize="11" fontWeight="700">PC2 · Selected</text>
-                <text x="280" y="61" fill="#0F766E" fontSize="10" fontFamily="monospace">86.22W · 1.10× speed</text>
+                <rect x="264" y="24" width="128" height="52" rx="3" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
+                <text x="274" y="44" fill="#121316" fontSize="11" fontWeight="700">PC2 · Selected</text>
+                <text x="274" y="61" fill="#0F766E" fontSize="9.5" fontFamily="monospace">86.22W · 1.10× speed</text>
               </g>
 
               {/* PC4 Selected */}
               <g>
-                <rect x="270" y="172" width="116" height="52" rx="3" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
-                <text x="280" y="192" fill="#121316" fontSize="11" fontWeight="700">PC4 · Selected</text>
-                <text x="280" y="209" fill="#0F766E" fontSize="10" fontFamily="monospace">35.92W · 1.35× speed</text>
+                <rect x="264" y="172" width="128" height="52" rx="3" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
+                <text x="274" y="192" fill="#121316" fontSize="11" fontWeight="700">PC4 · Selected</text>
+                <text x="274" y="209" fill="#0F766E" fontSize="9.5" fontFamily="monospace">35.92W · 1.35× speed</text>
               </g>
             </svg>
           </motion.div>
@@ -317,6 +317,14 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 {POLICY_POINTS.map((p, i) => {
                   const cx = 60 + ((p.co2 - 5) / 15) * 324;
                   const cy = 170 - ((p.acc - 81) / 3) * 140;
+                  const labelPos =
+                    p.name === 'LowestEnergy2'
+                      ? { x: cx + 10, y: cy + 4, anchor: 'start' as const }
+                      : p.name === 'Fastest2'
+                        ? { x: cx, y: cy + 20, anchor: 'middle' as const }
+                        : p.name === 'Q_learning_RL'
+                          ? { x: cx - 10, y: cy - 12, anchor: 'end' as const }
+                          : { x: cx + 8, y: cy + 20, anchor: 'end' as const };
                   return (
                     <g key={p.name}>
                       {p.highlight && (
@@ -342,11 +350,11 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                         transition={{ duration: 0.35, delay: 0.2 + i * 0.1, ease: EASE }}
                       />
                       <text
-                        x={cx}
-                        y={cy - 12}
-                        textAnchor={p.name === 'FedAvg_all4' ? 'end' : 'middle'}
+                        x={labelPos.x}
+                        y={labelPos.y}
+                        textAnchor={labelPos.anchor}
                         fill="#121316"
-                        fontSize="10.5"
+                        fontSize="10"
                         fontWeight={p.highlight ? '700' : '600'}
                         fontFamily="monospace"
                       >
