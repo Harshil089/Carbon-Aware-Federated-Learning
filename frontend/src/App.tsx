@@ -511,8 +511,9 @@ export default function App() {
             </div>
           )}
 
-          {(view === 'overview' || view === 'replay') && (
+          {view === 'overview' && (
             <form className="deck" onSubmit={handleRun}>
+              <div className="step-kicker num">STEP 1 · CONFIGURE &amp; RUN SIMULATION</div>
               <div className="deck-main">
                 <div className="deck-left">
                   <div className="seg" role="group" aria-label="Simulation presets">
@@ -539,9 +540,7 @@ export default function App() {
                       [
                         ['rounds', 'Rounds', 1, 100, 1],
                         ['episodes', 'Episodes', 1, 500, 1],
-                        ['repeats', 'Trials', 1, 20, 1],
                         ['target', 'Target %', 0.01, 100, 'any'],
-                        ['sensitivity', 'Sens n', 1, 100, 1],
                       ] as const
                     ).map(([key, label, min, max, step]) => (
                       <div className="chip-field" key={key}>
@@ -565,7 +564,7 @@ export default function App() {
                 <div className="deck-right">
                   <button type="button" className="btn-tune" onClick={() => setDrawerOpen((o) => !o)}>
                     <SlidersHorizontal size={13} />
-                    {drawerOpen ? 'Hide Weights' : 'Weights'}
+                    {drawerOpen ? 'Hide Options' : 'More Options'}
                   </button>
                   <motion.button
                     type="submit"
@@ -593,6 +592,8 @@ export default function App() {
                   >
                     {(
                       [
+                        ['repeats', 'Repeat trials', 1, 20, 1],
+                        ['sensitivity', 'Sensitivity samples', 1, 100, 1],
                         ['local_epochs', 'Local epochs', 1, 20, 1],
                         ['learning_rate', 'Learning rate (η)', 0.001, 2, 0.001],
                         ['seed', 'Random seed', 0, 2147483647, 1],
@@ -649,6 +650,7 @@ export default function App() {
                 exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               >
+                <div className="step-kicker num">STEP 2 · KEY TAKEAWAY</div>
                 <div className="editorial-strip" aria-label="Empirical summary ledger">
                   <div className="rib-cell lead">
                     <span className="rib-label">Q-Learning RL Outcome</span>
