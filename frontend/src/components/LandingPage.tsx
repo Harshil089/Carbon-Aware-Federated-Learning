@@ -189,33 +189,45 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
 
               {/* Animated packets on active links */}
               <motion.circle
+                cx={200}
+                cy={123}
                 r="4"
                 fill="#10B981"
                 animate={{ cx: [200, 326, 200], cy: [123, 50, 123] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
               />
               <motion.circle
+                cx={326}
+                cy={196}
                 r="4"
                 fill="#E5E5E5"
                 animate={{ cx: [326, 200, 326], cy: [196, 123, 196] }}
                 transition={{ duration: 2.2, delay: 0.45, repeat: Infinity, ease: 'easeInOut' }}
               />
-              {!isRl && (
-                <>
-                  <motion.circle
-                    r="4"
-                    fill="#EF4444"
-                    animate={{ cx: [200, 74, 200], cy: [123, 50, 123] }}
-                    transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                  <motion.circle
-                    r="4"
-                    fill="#EF4444"
-                    animate={{ cx: [74, 200, 74], cy: [196, 123, 196] }}
-                    transition={{ duration: 2.4, delay: 0.3, repeat: Infinity, ease: 'easeInOut' }}
-                  />
-                </>
-              )}
+              <motion.circle
+                cx={200}
+                cy={123}
+                r="4"
+                fill="#EF4444"
+                animate={{
+                  cx: [200, 74, 200],
+                  cy: [123, 50, 123],
+                  opacity: isRl ? 0 : 1,
+                }}
+                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+              />
+              <motion.circle
+                cx={74}
+                cy={196}
+                r="4"
+                fill="#EF4444"
+                animate={{
+                  cx: [74, 200, 74],
+                  cy: [196, 123, 196],
+                  opacity: isRl ? 0 : 1,
+                }}
+                transition={{ duration: 2.4, delay: 0.3, repeat: Infinity, ease: 'easeInOut' }}
+              />
 
               {/* Coordinator */}
               <motion.circle
@@ -318,16 +330,16 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                       className="lp-bar-work"
                       initial={{ width: 0 }}
                       whileInView={{ width: `${row.workPct}%` }}
-                      viewport={{ once: true }}
-                      transition={{ ...SPRING_SMOOTH, delay: idx * 0.06 }}
+                      viewport={{ once: true, amount: 0.05 }}
+                      transition={{ ...SPRING_SMOOTH, delay: idx * 0.05 }}
                     />
                     {row.idlePct > 0 && (
                       <motion.div
                         className="lp-bar-idle"
                         initial={{ width: 0 }}
                         whileInView={{ width: `${row.idlePct}%` }}
-                        viewport={{ once: true }}
-                        transition={{ ...SPRING_SMOOTH, delay: 0.25 + idx * 0.06 }}
+                        viewport={{ once: true, amount: 0.05 }}
+                        transition={{ ...SPRING_SMOOTH, delay: 0.12 + idx * 0.05 }}
                       />
                     )}
                   </div>
