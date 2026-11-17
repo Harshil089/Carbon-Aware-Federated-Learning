@@ -38,15 +38,15 @@ NODE_SPECS = {
         "ram_gb": 16,
         "gpu_vram_gb": 0,
         "relative_speed": 1.10,
-        "active_power_w": PC1_MEAN_ACTIVE_POWER_W * 1.25,  # ~25.658 W
+        "active_power_w": 86.22,  # Physical meter: 0.276 kWh / 192.075 min
         "idle_power_w": 9.0,
         "network_s": 0.45,
     },
     "PC3": {
         "ram_gb": 32,
         "gpu_vram_gb": 8,
-        "relative_speed": 1.80,
-        "active_power_w": PC1_MEAN_ACTIVE_POWER_W * 2.45,  # ~50.289 W
+        "relative_speed": 1.54,  # 39.66% faster than PC2 (2.75s vs 3.84s per round)
+        "active_power_w": 209.4,  # Physical meter: 0.480 kWh / 137.528 min
         "idle_power_w": 13.0,
         "network_s": 0.60,
     },

@@ -4,12 +4,32 @@
   "grid_factor_source": "Central Electricity Authority, CO2 Baseline Database v22.0 (August 2026), weighted-average Indian grid including renewables, FY 2025-26, https://cea.nic.in/api/cdm-report-version/view-pdf/en/82, page 1",
   "actual_measurement": {
     "node": "PC1",
-    "cpu": "Intel Core i7-12700 (user-reported; verify exact CPU)",
+    "cpu": "Intel Core i7-12700 (12th Gen)",
     "ram_gb": 8,
     "meter_energy_kwh": 0.065,
     "meter_duration_minutes": 190,
-    "meter_scope": "PC power lead; exact meter display, workload, sampling and peripherals to verify",
-    "data_status": "MEASURED BY USER (UNVERIFIED INSTRUMENT DETAILS)"
+    "average_power_w": 20.53,
+    "carbon_g": 43.875,
+    "meter_scope": "External physical electricity meter; reading needs re-verification",
+    "data_status": "MEASURED BY USER (NEEDS RE-VERIFICATION)"
+  },
+  "cifar10_benchmark_experiment": {
+    "dataset": "CIFAR-10",
+    "algorithm": "FedAvg",
+    "total_clients": 50,
+    "clients_per_round": 10,
+    "dirichlet_alpha": 0.1,
+    "training_mode": "CPU",
+    "rounds": 3000,
+    "grid_factor_kgco2_per_kwh": 0.675,
+    "key_findings": {
+      "pc3_speedup_pct_vs_pc2": 39.66,
+      "latency_reduction_pct": 28.40,
+      "time_saved_seconds": 3272.8,
+      "energy_increase_pct": 73.91,
+      "carbon_increase_pct": 73.91,
+      "accuracy_gain_pct_points": 0.35
+    }
   },
   "scenario_settings": {
     "synthetic_pc1_train_seconds_per_round": 16.0,
@@ -18,45 +38,67 @@
     "speed_jitter_fraction": 0.1,
     "power_uncertainty_fraction": 0.35,
     "speed_uncertainty_fraction": 0.3,
-    "physical_hardware_scenario_only": true,
-    "note": "PC2-4 power ratios and relative speed factors are illustration knobs, NOT predictions derived from memory/GPU VRAM. PC1 mean metered wall power is reused as a scenario anchor, not proof of active FL training power."
+    "physical_hardware_scenario_only": false,
+    "note": "PC1, PC2 (Ultra 5 235), and PC3 (Ultra 7 265K) carry physical electricity meter measurements. PC4 remains an unmeasured scenario profile."
   },
   "nodes": [
     {
       "name": "PC1",
       "ram_gb": 8,
       "gpu_vram_gb": 0,
-      "processor": "12th Gen Intel Core i7-12700 (reported)",
+      "processor": "Intel Core i7-12700 (12th Gen)",
       "relative_speed": 1.0,
       "active_power_ratio_to_PC1": 1.0,
       "idle_power_w_assumed": 7.0,
       "network_seconds_assumed": 0.3,
       "grid_kgco2_per_kwh": 0.675,
-      "status": "PC1 POWER ANCHORED TO SINGLE METER RUN"
+      "measured_energy_kwh": 0.065,
+      "measured_duration_min": 190.0,
+      "measured_avg_power_w": 20.53,
+      "measured_co2_g": 43.875,
+      "status": "MEASURED BY USER (NEEDS RE-VERIFICATION)"
     },
     {
       "name": "PC2",
       "ram_gb": 16,
       "gpu_vram_gb": 0,
-      "processor": "UNKNOWN",
+      "processor": "Intel Core Ultra 5 235 (Intel Integrated Graphics)",
       "relative_speed": 1.1,
-      "active_power_ratio_to_PC1": 1.25,
+      "active_power_ratio_to_PC1": 4.2,
       "idle_power_w_assumed": 9.0,
       "network_seconds_assumed": 0.45,
       "grid_kgco2_per_kwh": 0.675,
-      "status": "UNMEASURED SCENARIO"
+      "measured_energy_kwh": 0.276,
+      "measured_duration_min": 192.075,
+      "measured_avg_power_w": 86.22,
+      "measured_co2_g": 186.3,
+      "measured_rounds": 3000,
+      "measured_sec_per_round": 3.84,
+      "measured_wh_per_round": 0.092,
+      "measured_final_accuracy_pct": 72.11,
+      "measured_final_loss": 0.1617,
+      "status": "MEASURED BY USER (CIFAR-10 CPU, 3000 ROUNDS)"
     },
     {
       "name": "PC3",
       "ram_gb": 32,
       "gpu_vram_gb": 8,
-      "processor": "UNKNOWN; GPU MODEL UNKNOWN",
-      "relative_speed": 1.8,
-      "active_power_ratio_to_PC1": 2.45,
+      "processor": "Intel Core Ultra 7 265K (8 GB GPU, CUDA disabled)",
+      "relative_speed": 1.54,
+      "active_power_ratio_to_PC1": 10.2,
       "idle_power_w_assumed": 13.0,
       "network_seconds_assumed": 0.6,
       "grid_kgco2_per_kwh": 0.675,
-      "status": "UNMEASURED SCENARIO, GPU ACCELERATION ASSUMED"
+      "measured_energy_kwh": 0.480,
+      "measured_duration_min": 137.528,
+      "measured_avg_power_w": 209.4,
+      "measured_co2_g": 324.0,
+      "measured_rounds": 3000,
+      "measured_sec_per_round": 2.75,
+      "measured_wh_per_round": 0.160,
+      "measured_final_accuracy_pct": 72.46,
+      "measured_final_loss": 0.1631,
+      "status": "MEASURED BY USER (CIFAR-10 CPU, 3000 ROUNDS)"
     },
     {
       "name": "PC4",
@@ -68,7 +110,7 @@
       "idle_power_w_assumed": 11.0,
       "network_seconds_assumed": 0.45,
       "grid_kgco2_per_kwh": 0.675,
-      "status": "UNMEASURED SCENARIO, GPU ACCELERATION ASSUMED"
+      "status": "UNMEASURED SCENARIO"
     }
   ]
 }

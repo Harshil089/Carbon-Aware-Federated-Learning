@@ -167,8 +167,8 @@ class TestPipelineLayers(unittest.TestCase):
         self.assertEqual(fastest.select(clients), (2, 3))
 
         lowest_co2 = LowestCarbonScheduler(k=2)
-        # PC1 (idx 0) and PC2 (idx 1) have the lowest active energy/CO2 per round
-        self.assertEqual(lowest_co2.select(clients), (0, 1))
+        # PC1 (idx 0, 20.53W) and PC4 (idx 3, 35.92W) have the lowest active energy/CO2 per round
+        self.assertEqual(lowest_co2.select(clients), (0, 3))
 
         rr = RoundRobinScheduler(k=2)
         self.assertEqual(rr.select(clients, round_idx=0), (0, 1))
