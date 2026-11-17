@@ -225,11 +225,26 @@ export default function App() {
     e.preventDefault();
     if (offline || running) return;
     setError('');
+    setEngine((prev) => ({
+      ...prev,
+      status: 'running',
+      progress: 5,
+      message: 'Starting federated simulation…',
+    }));
+    const ticker = window.setInterval(() => {
+      setEngine((prev) => {
+        if (prev.status !== 'running' || prev.progress >= 92) return prev;
+        return { ...prev, progress: Math.min(92, prev.progress + 5) };
+      });
+    }, 350);
     try {
       await api('/api/run', settings);
       await poll();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Run failed');
+      setEngine((prev) => ({ ...prev, status: 'failed' }));
+    } finally {
+      window.clearInterval(ticker);
     }
   }
 

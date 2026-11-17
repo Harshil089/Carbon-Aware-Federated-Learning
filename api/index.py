@@ -134,25 +134,35 @@ def execute_serverless_run(raw: dict) -> str:
     with LOCK:
         STATE.update(
             status='running',
-            progress=15,
-            message='Executing simulation on serverless worker…',
+            progress=5,
+            message='Starting simulation…',
             run_id=run_id,
             log=['PROGRESS 0 Preparing client data'],
         )
 
-    proc = subprocess.run(
+    proc = subprocess.Popen(
         cmd,
         cwd=BASE,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         encoding='utf-8',
         errors='replace',
-        timeout=55,
     )
-    lines = [ln.rstrip() for ln in (proc.stdout or '').splitlines() if ln.strip()]
+    lines = []
+    if proc.stdout is not None:
+        for line in proc.stdout:
+            s = line.rstrip()
+            if s:
+                lines.append(s)
+            m = re.match(r'PROGRESS (\d+) (.*)', s)
+            if m:
+                with LOCK:
+                    STATE.update(progress=int(m[1]), message=m[2], log=lines[-500:])
+    returncode = proc.wait(timeout=55)
     (out / 'run.log').write_text('\n'.join(lines) + '\n', encoding='utf-8')
     with LOCK:
-        if proc.returncode == 0 and (out / 'run_parameters.json').exists():
+        if returncode == 0 and (out / 'run_parameters.json').exists():
             STATE.update(
                 status='complete',
                 progress=100,
@@ -164,7 +174,7 @@ def execute_serverless_run(raw: dict) -> str:
         else:
             STATE.update(
                 status='failed',
-                message=f'Simulation exited with code {proc.returncode}',
+                message=f'Simulation exited with code {returncode}',
                 log=lines[-500:],
             )
     return run_id
