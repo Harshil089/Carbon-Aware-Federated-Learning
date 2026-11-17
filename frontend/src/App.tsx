@@ -121,14 +121,15 @@ export default function App() {
     setPreset(nextSettings.rounds === 12 && nextSettings.episodes === 35 ? 'quick' : 'full');
   }, []);
 
-  const poll = useCallback(async () => {
+  const poll = useCallback(async (forceRefresh = false) => {
     if (runInFlightRef.current) return;
     try {
       const state = await api<EngineState>('/api/state');
       if (runInFlightRef.current) return;
       setEngine(state);
       if (state.status === 'failed') setError(state.message);
-      if (state.result_id && state.result_id !== resultIdRef.current) {
+      const shouldLoad = !resultIdRef.current || forceRefresh;
+      if (shouldLoad && state.result_id && state.result_id !== resultIdRef.current) {
         const res = await api<SimulationResults>('/api/results');
         resultIdRef.current = res.result_id || state.result_id;
         setResults(res);
@@ -244,7 +245,7 @@ export default function App() {
     try {
       await api('/api/run', settings);
       runInFlightRef.current = false;
-      await poll();
+      await poll(true);
     } catch (err) {
       runInFlightRef.current = false;
       setError(err instanceof Error ? err.message : 'Run failed');
