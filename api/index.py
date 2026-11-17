@@ -189,21 +189,29 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _resolve_request(self):
+        parsed = urlparse(self.path)
+        q = parse_qs(parsed.query)
+        req_path = parsed.path
+        if req_path in ('/api/index.py', '/api/index') and '__route' in q:
+            req_path = re.sub(r'/+', '/', q['__route'][0]) or '/'
+        return req_path, q
+
     def do_GET(self):
-        path = urlparse(self.path)
+        req_path, q = self._resolve_request()
         try:
-            if path.path in ('/', '/index.html', '/overview', '/pipeline', '/replay', '/specs'):
+            if req_path in ('/', '/index.html', '/overview', '/pipeline', '/replay', '/specs'):
                 html = (BASE / 'web' / 'index.html').read_text(encoding='utf-8').replace('__BOOTSTRAP__', 'null')
                 return self.send(200, html, 'text/html; charset=utf-8')
-            if path.path == '/api/state':
+            if req_path == '/api/state':
                 with LOCK:
                     data = dict(STATE)
                 return self.send(200, data)
-            if path.path == '/api/results':
+            if req_path == '/api/results':
                 with LOCK:
                     rid = STATE['result_id']
                 return self.send(200, read_results(rid))
-            if path.path == '/api/overview':
+            if req_path == '/api/overview':
                 with LOCK:
                     rid = STATE['result_id']
                 res = read_results(rid)
@@ -217,11 +225,10 @@ class handler(BaseHTTPRequestHandler):
                         'result_id': res['result_id'],
                     },
                 )
-            if path.path == '/api/replay':
+            if req_path == '/api/replay':
                 with LOCK:
                     rid = STATE['result_id']
                 res = read_results(rid)
-                q = parse_qs(path.query)
                 rows = res['rows']
                 if 'policy' in q:
                     rows = [r for r in rows if r['policy'] == q['policy'][0]]
@@ -236,7 +243,7 @@ class handler(BaseHTTPRequestHandler):
                         'grid_kg_co2_per_kwh': res['parameters']['infrastructure']['grid_kg_co2_per_kwh'],
                     },
                 )
-            if path.path == '/api/specs':
+            if req_path == '/api/specs':
                 with LOCK:
                     rid = STATE['result_id']
                 res = read_results(rid)
@@ -249,14 +256,14 @@ class handler(BaseHTTPRequestHandler):
                         'artifact_prefix': res['artifact_prefix'],
                     },
                 )
-            if path.path == '/api/telemetry/summary':
+            if req_path == '/api/telemetry/summary':
                 from fl_pipeline.experiment import load_calibrated_telemetry_csv
 
                 _, summary = load_calibrated_telemetry_csv()
                 return self.send(200, {'source': 'data/calibrated_telemetry_10k.csv', 'nodes': summary})
-            if path.path == '/api/pipeline':
+            if req_path == '/api/pipeline':
                 return self.send(200, get_pipeline_cached())
-            if path.path == '/api/pipeline/layers':
+            if req_path == '/api/pipeline/layers':
                 p = get_pipeline_cached()
                 return self.send(
                     200,
@@ -267,14 +274,14 @@ class handler(BaseHTTPRequestHandler):
                         'pareto_morl': p['pareto_morl'],
                     },
                 )
-            if path.path == '/api/pipeline/policies':
+            if req_path == '/api/pipeline/policies':
                 p = get_pipeline_cached()
                 return self.send(200, {'policies': p['policies'], 'pareto_policies': p['pareto_policies']})
-            if path.path == '/api/pipeline/morl':
+            if req_path == '/api/pipeline/morl':
                 p = get_pipeline_cached()
                 return self.send(200, {'morl_sweep': p['morl_sweep'], 'pareto_morl': p['pareto_morl']})
-            if path.path == '/api/export':
-                rid = parse_qs(path.query).get('run', ['baseline'])[0]
+            if req_path == '/api/export':
+                rid = q.get('run', ['baseline'])[0]
                 folder = result_dir(rid)
                 if not (folder / 'run_parameters.json').exists():
                     return self.send(404, {'error': 'No completed run found.'})
@@ -289,7 +296,7 @@ class handler(BaseHTTPRequestHandler):
                     'application/zip',
                     {'Content-Disposition': 'attachment; filename="Simulation_Results.zip"'},
                 )
-            parts = path.path.strip('/').split('/')
+            parts = req_path.strip('/').split('/')
             if len(parts) == 3 and parts[0] == 'artifacts':
                 folder = result_dir(parts[1])
                 name = parts[2]
@@ -313,6 +320,7 @@ class handler(BaseHTTPRequestHandler):
             return self.send(404, {'error': 'Result not found.'})
 
     def do_POST(self):
+        req_path, _ = self._resolve_request()
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
             return self.send(415, {'error': 'Use JSON settings.'})
         try:
@@ -320,14 +328,14 @@ class handler(BaseHTTPRequestHandler):
             if not 0 < length < 12000:
                 return self.send(400, {'error': 'Invalid request size.'})
             raw = json.loads(self.rfile.read(length))
-            if self.path == '/api/run':
+            if req_path == '/api/run':
                 run_id = execute_serverless_run(raw)
                 return self.send(202, {'run_id': run_id})
-            if self.path == '/api/cancel':
+            if req_path == '/api/cancel':
                 with LOCK:
                     STATE.update(status='cancelled', message='Run stopped. Previous results retained.')
                 return self.send(200, {'ok': True})
-            if self.path in ('/api/pipeline', '/api/pipeline/run'):
+            if req_path in ('/api/pipeline', '/api/pipeline/run'):
                 global PIPELINE_CACHE
                 with PIPELINE_LOCK:
                     PIPELINE_CACHE = run_and_cache_pipeline(raw)
