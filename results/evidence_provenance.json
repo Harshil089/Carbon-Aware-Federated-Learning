@@ -1,12 +1,14 @@
 {
   "reference_meter_input": {
     "node": "PC1",
-    "cpu": "Intel Core i7-12700 (user-reported; verify exact CPU)",
+    "cpu": "Intel Core i7-12700 (12th Gen)",
     "ram_gb": 8,
     "meter_energy_kwh": 0.065,
     "meter_duration_minutes": 190,
-    "meter_scope": "PC power lead; exact meter display, workload, sampling and peripherals to verify",
-    "data_status": "MEASURED BY USER (UNVERIFIED INSTRUMENT DETAILS)"
+    "average_power_w": 20.53,
+    "carbon_g": 43.875,
+    "meter_scope": "External physical electricity meter; reading needs re-verification",
+    "data_status": "MEASURED BY USER (NEEDS RE-VERIFICATION)"
   },
   "reference_mean_power_w": 20.526315789473685,
   "source": "Central Electricity Authority, CO2 Baseline Database v22.0 (August 2026), weighted-average Indian grid including renewables, FY 2025-26, https://cea.nic.in/api/cdm-report-version/view-pdf/en/82, page 1",

@@ -29,7 +29,7 @@ const DEMO_POLICIES: Record<
     roundCo2: 0.285,
     accPct: 82.4,
     co2Delta: '−26.9% CO₂ vs. All-4',
-    note: 'Avoids PC1 straggler delay and PC3 50.3W peak draw while maintaining class coverage.',
+    note: 'Avoids PC1 straggler delay and PC3 209.4W peak draw while maintaining class coverage.',
     activeNodes: {
       PC2: { workS: 14.55, netS: 0.45 },
       PC4: { workS: 11.85, netS: 0.45 },
@@ -312,7 +312,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               <div className="prov-row">
                 <dt>Calibrated Cluster</dt>
                 <dd className="num">
-                  <strong>10,000 Telemetry Rows</strong> — PC2–PC4 speed (1.10×–1.80×) &amp; grid CI (0.42–0.82 kg/kWh) ·{' '}
+                  <strong>10,000 Telemetry Rows</strong> — PC1–PC3 meter-calibrated &amp; PC4 scenario (1.00×–1.54× speed, 0.675 kg/kWh) ·{' '}
                   <span className="stamp-modeled">MODELED</span>
                 </dd>
               </div>
@@ -559,7 +559,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 </table>
               </div>
               <p className="roster-footnote">
-                <strong>Data Provenance Note:</strong> Only <code>PC1</code> (0.065 kWh over 190 minutes = 20.526 W mean power) is a physical wall-meter measurement. <code>PC2–PC4</code> ratios and the 10,000-row telemetry CSV are calibrated simulation scenarios.
+                <strong>Data Provenance Note:</strong> <code>PC1</code> (0.065 kWh / 190 min = 20.53 W, re-verify), <code>PC2</code> (Ultra 5 235: 0.276 kWh / 192.1 min = 86.22 W), and <code>PC3</code> (Ultra 7 265K: 0.480 kWh / 137.5 min = 209.4 W) are physical meter measurements. <code>PC4</code> and the 10,000-row telemetry CSV are calibrated scenario profiles.
               </p>
             </div>
           </div>
