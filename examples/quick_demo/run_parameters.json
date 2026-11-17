@@ -1,0 +1,195 @@
+{
+  "run": {
+    "rounds": 12,
+    "episodes": 35,
+    "repeats": 3,
+    "sensitivity": 12,
+    "target": 0.8,
+    "local_epochs": 2,
+    "learning_rate": 0.23,
+    "seed": 42,
+    "latency_weight": 0.018,
+    "carbon_weight": 0.32
+  },
+  "training": {
+    "clients": 4,
+    "classes": 3,
+    "features": 2,
+    "bias": true,
+    "model": "Softmax linear classifier",
+    "aggregation": "Sample-weighted FedAvg",
+    "samples_per_client": 250,
+    "training_samples": 1000,
+    "test_samples": 1500,
+    "local_epochs": 2,
+    "learning_rate": 0.23,
+    "feature_noise_sd": 1.3,
+    "class_centres": [
+      [
+        -1.8,
+        -1.3
+      ],
+      [
+        1.7,
+        -0.9
+      ],
+      [
+        0.1,
+        1.8
+      ]
+    ],
+    "client_class_probabilities": [
+      [
+        0.8,
+        0.1,
+        0.1
+      ],
+      [
+        0.1,
+        0.8,
+        0.1
+      ],
+      [
+        0.1,
+        0.1,
+        0.8
+      ],
+      [
+        0.34,
+        0.33,
+        0.33
+      ]
+    ],
+    "data": "Synthetic non-IID classification",
+    "execution": "CPU / NumPy"
+  },
+  "rl": {
+    "algorithm": "Tabular Q-learning",
+    "alpha": 0.24,
+    "gamma": 0.86,
+    "epsilon_start": 0.8,
+    "epsilon_min": 0.06,
+    "epsilon_schedule": "max(0.06, 0.80 * (1 - episode / episodes))",
+    "actions": 11,
+    "clients_per_action": [
+      2,
+      3,
+      4
+    ],
+    "training_phases": 4,
+    "accuracy_bucket_edges": [
+      0.5,
+      0.68,
+      0.76,
+      0.81
+    ],
+    "accuracy_gain_weight": 15,
+    "latency_weight": 0.018,
+    "carbon_weight": 0.32,
+    "accuracy_shortfall_weight": 0.6,
+    "reward_accuracy_floor": 0.78,
+    "reward": "15 * accuracy_gain - latency_weight * seconds - carbon_weight * CO2_grams - 0.6 * max(0, 0.78 - accuracy)",
+    "target_note": "Comparison target controls target-hit reporting; the reward accuracy floor remains 0.78."
+  },
+  "seeds": {
+    "data": 42,
+    "q_learning": 2026,
+    "performance_trials": [
+      1200,
+      1201,
+      1202
+    ],
+    "sensitivity_profiles": 891,
+    "sensitivity_performance_trials": [
+      10000,
+      10001,
+      10002,
+      10003,
+      10004,
+      10005,
+      10006,
+      10007,
+      10008,
+      10009,
+      10010,
+      10011
+    ]
+  },
+  "infrastructure": {
+    "grid_kg_co2_per_kwh": 0.675,
+    "reference_energy_kwh": 0.065,
+    "reference_duration_min": 190,
+    "reference_mean_power_w": 20.526315789473685,
+    "settings": {
+      "synthetic_pc1_train_seconds_per_round": 16.0,
+      "coordinator_power_w": 30.0,
+      "aggregation_seconds_per_round": 0.45,
+      "speed_jitter_fraction": 0.1,
+      "power_uncertainty_fraction": 0.35,
+      "speed_uncertainty_fraction": 0.3,
+      "physical_hardware_scenario_only": true,
+      "note": "PC2-4 power ratios and relative speed factors are illustration knobs, NOT predictions derived from memory/GPU VRAM. PC1 mean metered wall power is reused as a scenario anchor, not proof of active FL training power."
+    },
+    "clients": [
+      {
+        "name": "PC1",
+        "ram_gb": 8,
+        "gpu_vram_gb": 0,
+        "processor": "12th Gen Intel Core i7-12700 (reported)",
+        "relative_speed": 1.0,
+        "active_power_ratio_to_PC1": 1.0,
+        "idle_power_w_assumed": 7.0,
+        "network_seconds_assumed": 0.3,
+        "grid_kgco2_per_kwh": 0.675,
+        "status": "PC1 POWER ANCHORED TO SINGLE METER RUN"
+      },
+      {
+        "name": "PC2",
+        "ram_gb": 16,
+        "gpu_vram_gb": 0,
+        "processor": "UNKNOWN",
+        "relative_speed": 1.1,
+        "active_power_ratio_to_PC1": 1.25,
+        "idle_power_w_assumed": 9.0,
+        "network_seconds_assumed": 0.45,
+        "grid_kgco2_per_kwh": 0.675,
+        "status": "UNMEASURED SCENARIO"
+      },
+      {
+        "name": "PC3",
+        "ram_gb": 32,
+        "gpu_vram_gb": 8,
+        "processor": "UNKNOWN; GPU MODEL UNKNOWN",
+        "relative_speed": 1.8,
+        "active_power_ratio_to_PC1": 2.45,
+        "idle_power_w_assumed": 13.0,
+        "network_seconds_assumed": 0.6,
+        "grid_kgco2_per_kwh": 0.675,
+        "status": "UNMEASURED SCENARIO, GPU ACCELERATION ASSUMED"
+      },
+      {
+        "name": "PC4",
+        "ram_gb": 16,
+        "gpu_vram_gb": 4,
+        "processor": "UNKNOWN; GPU MODEL UNKNOWN",
+        "relative_speed": 1.35,
+        "active_power_ratio_to_PC1": 1.75,
+        "idle_power_w_assumed": 11.0,
+        "network_seconds_assumed": 0.45,
+        "grid_kgco2_per_kwh": 0.675,
+        "status": "UNMEASURED SCENARIO, GPU ACCELERATION ASSUMED"
+      }
+    ],
+    "latency_formula": "max(client work + client network delay) + aggregation delay",
+    "energy_formula": "(sum(active_W * work_s + idle_W * remaining_s) + coordinator_W * round_s) / 3600 = Wh",
+    "carbon_formula": "Wh * grid_kg_CO2_per_kWh = grams CO2"
+  },
+  "runtime": {
+    "engine": "Python / NumPy",
+    "python": "3.12.3",
+    "numpy": "2.5.5",
+    "matplotlib": "3.11.2"
+  },
+  "execution_wall_seconds": 0.584,
+  "interpretation": "Synthetic client data. Infrastructure latency, energy and carbon are modeled."
+}

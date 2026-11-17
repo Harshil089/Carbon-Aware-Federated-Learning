@@ -1,0 +1,5 @@
+﻿policy,scenario_samples,co2_g_p05_ASSUMED,co2_g_median_ASSUMED,co2_g_p95_ASSUMED,seconds_p05_ASSUMED,seconds_p95_ASSUMED
+FedAvg_all4,12,4.6533,5.3159,5.8435,200.61,233.65
+Fastest2,12,2.9322,3.8072,4.2917,145.56,192.32
+LowestModelEnergy2,12,3.4799,3.7508,4.5504,196.83,233.65
+Q_learning_RL,12,3.6735,4.1553,4.8,178.96,223.17

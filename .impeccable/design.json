@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T00:23:00+05:30",
+  "title": "Design System: Federated Computing Lab",
+  "extensions": {
+    "colorMeta": {
+      "vermilion-calibration": {
+        "role": "primary",
+        "displayName": "Vermilion Calibration Ink",
+        "canonical": "#C82D14",
+        "tonalRamp": ["#2A0803", "#521006", "#7C1A0B", "#A9230D", "#C82D14", "#D9381E", "#F29B8C", "#FCEAE6"]
+      },
+      "vermilion-bright": {
+        "role": "primary",
+        "displayName": "Vermilion Plot Highlight",
+        "canonical": "#D9381E",
+        "tonalRamp": ["#2E0A04", "#5A1308", "#8A1E0D", "#B52812", "#D9381E", "#E6604A", "#F4A89B", "#FDF0ED"]
+      },
+      "cobalt-trajectory": {
+        "role": "secondary",
+        "displayName": "Cobalt Trajectory Blue",
+        "canonical": "#1D4ED8",
+        "tonalRamp": ["#0B1D4E", "#133185", "#1940B0", "#1D4ED8", "#3B6CE6", "#6891F0", "#A6BFF7", "#EBF0FD"]
+      },
+      "viridian-measured": {
+        "role": "secondary",
+        "displayName": "Viridian Measured Anchor",
+        "canonical": "#0F766E",
+        "tonalRamp": ["#062E2B", "#0A4F4A", "#0F766E", "#14968C", "#26B5AA", "#5ED1C7", "#9EE6DF", "#CCFBF1"]
+      },
+      "ochre-warning": {
+        "role": "tertiary",
+        "displayName": "Ochre Precision Amber",
+        "canonical": "#B45309",
+        "tonalRamp": ["#3B1A02", "#662E04", "#8F4107", "#B45309", "#D97706", "#F59E0B", "#FCD34D", "#FEF3C7"]
+      },
+      "vellum-ground": {
+        "role": "neutral",
+        "displayName": "Technical Vellum Ground",
+        "canonical": "#F5F2EB",
+        "tonalRamp": ["#1F1D18", "#3E3B32", "#635E52", "#8C8677", "#B8B0A0", "#D5CFC2", "#EFECE4", "#F5F2EB"]
+      },
+      "cream-plate": {
+        "role": "neutral",
+        "displayName": "Cream Figure Plate",
+        "canonical": "#FAF8F3",
+        "tonalRamp": ["#211F1B", "#45423A", "#6E695E", "#999386", "#C4BEB0", "#E4DFD3", "#F5F2EB", "#FAF8F3"]
+      },
+      "obsidian-ink": {
+        "role": "neutral",
+        "displayName": "Obsidian Structural Ink",
+        "canonical": "#121316",
+        "tonalRamp": ["#121316", "#23252A", "#3A3832", "#57534A", "#7A756A", "#A8A295", "#D5CFC2", "#F5F2EB"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Monograph Display",
+        "purpose": "Cover thesis headline (h1) on the monograph brief."
+      },
+      "headline": {
+        "displayName": "Plate Section Headline",
+        "purpose": "Primary workbench plate headers (h2) paired with inline plate tags."
+      },
+      "title": {
+        "displayName": "Figure & Panel Title",
+        "purpose": "Chart, matrix, and schematic container headers."
+      },
+      "body": {
+        "displayName": "Analytical Body",
+        "purpose": "Explanatory mechanism prose, constrained to 65-72ch."
+      },
+      "label": {
+        "displayName": "Tabular Telemetry Mono",
+        "purpose": "Numeric readouts, axis ticks, seeds, parameters, and provenance badges."
+      }
+    },
+    "shadows": [
+      {
+        "name": "tooltip-elevation",
+        "value": "0 10px 26px rgba(18, 19, 22, 0.14)",
+        "purpose": "Separates floating SVG chart inspection tooltips from underlying coordinate gridlines."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-monograph",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Exponential ease-out for synchronous Gantt bar updates, trajectory path drawing, and plate transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "lg", "value": "1120px" },
+      { "name": "md", "value": "900px" },
+      { "name": "sm", "value": "600px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Run Actuator",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary vermilion simulation trigger with 1px structural ink border.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"13\" height=\"13\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polygon points=\"5 3 19 12 5 21 5 3\"/></svg>Run Simulation</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #121316; background: #C82D14; color: #FFFFFF; border-radius: 4px; padding: 8px 16px; font: 600 12.5px/1.2 'Schibsted Grotesk', sans-serif; cursor: pointer; transition: background 0.15s; } .ds-btn-primary:hover { background: #A9230D; } .ds-btn-primary:focus-visible { outline: 2px solid #C82D14; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Architectural Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary control for plate stepping, weights drawer, and exports.",
+      "html": "<button class=\"ds-btn-secondary\">Weights &amp; Seed</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #121316; background: #F5F2EB; color: #121316; border-radius: 4px; padding: 7px 12px; font: 600 12px/1.2 'Schibsted Grotesk', sans-serif; cursor: pointer; transition: background 0.15s; } .ds-btn-secondary:hover { background: #EFECE4; } .ds-btn-secondary:focus-visible { outline: 2px solid #C82D14; outline-offset: 2px; }"
+    },
+    {
+      "name": "Inline Tabular Parameter Field",
+      "kind": "input",
+      "refersTo": "chip-field",
+      "description": "Compact labeled numeric parameter chip for rounds, episodes, and Dirichlet alpha.",
+      "html": "<div class=\"ds-chip-field\"><label>Rounds</label><input type=\"number\" value=\"20\" /></div>",
+      "css": ".ds-chip-field { display: inline-flex; align-items: center; gap: 6px; background: #F5F2EB; border: 1px solid #D5CFC2; border-radius: 4px; padding: 4px 10px; font-family: 'Schibsted Grotesk', sans-serif; } .ds-chip-field:focus-within { border-color: #C82D14; background: #FAF8F3; } .ds-chip-field label { font-size: 11.5px; font-weight: 500; color: #57534A; } .ds-chip-field input { width: 44px; border: 0; background: transparent; font: 600 12.5px/1.2 'JetBrains Mono', monospace; text-align: right; color: #121316; outline: none; }"
+    },
+    {
+      "name": "Provenance Stamp Pair",
+      "kind": "chip",
+      "refersTo": "stamp-measured",
+      "description": "Contrasting stamps separating physical wall-meter measurements from modeled cluster scenarios.",
+      "html": "<div class=\"ds-stamps\"><span class=\"ds-stamp-measured\">MEASURED WALL METER</span><span class=\"ds-stamp-modeled\">MODELED SCENARIO</span></div>",
+      "css": ".ds-stamps { display: flex; gap: 8px; } .ds-stamp-measured { font: 600 10.5px/1.2 'JetBrains Mono', monospace; padding: 3px 7px; border-radius: 2px; background: #CCFBF1; color: #0F766E; border: 1px solid rgba(15, 118, 110, 0.3); } .ds-stamp-modeled { font: 600 10.5px/1.2 'JetBrains Mono', monospace; padding: 3px 7px; border-radius: 2px; background: #EFECE4; color: #3A3832; border: 1px solid #D5CFC2; }"
+    },
+    {
+      "name": "Monograph Plate Container",
+      "kind": "card",
+      "refersTo": "plate-container",
+      "description": "Framed scientific figure plate with inline heading and figure index tag.",
+      "html": "<div class=\"ds-plate\"><div class=\"ds-plate-head\"><h2>Accuracy–Carbon Pareto Frontier</h2><span>FIG. 1.1</span></div><p>20 rounds · 5 performance trials · 80.0% target</p></div>",
+      "css": ".ds-plate { background: #FAF8F3; border: 1px solid #121316; border-radius: 4px; padding: 20px; color: #121316; font-family: 'Schibsted Grotesk', sans-serif; } .ds-plate-head { display: flex; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #D5CFC2; margin-bottom: 8px; } .ds-plate-head h2 { font-size: 16.5px; font-weight: 700; margin: 0; } .ds-plate-head span { font: 700 10.5px/1 'JetBrains Mono', monospace; color: #C82D14; background: rgba(217, 56, 30, 0.08); border: 1px solid rgba(200, 45, 20, 0.25); padding: 2px 7px; border-radius: 2px; } .ds-plate p { margin: 0; font-size: 12.5px; color: #3A3832; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The ETH / Birkhäuser Scientific Monograph & Technical Atlas",
+    "overview": "Federated Computing Lab rejects the category default of pitch-black SaaS dashboards and glowing neon cards in favor of the tactile, high-contrast authority of a Swiss polytechnic engineering folio and scientific atlas. Every screen behaves like a calibrated figure plate printed on warm technical vellum (#F5F2EB) and cream drafting stock (#FAF8F3), structured by exposed 1px obsidian hairlines (#121316) and subtle stone rules (#D5CFC2).\n\nBecause the product's core scientific contribution is anchoring a multi-node Federated Learning simulator to a single physical wall-meter reading (PC1: 0.065 kWh over 190 min = 20.53 W) while modeling cluster-wide latency, active/idle power, and carbon intensity across PC2–PC4, the visual system treats provenance as structural architecture.",
+    "keyCharacteristics": [
+      "Exposed 1px architectural hairline grids (#121316 outer plate frames, #D5CFC2 internal subdivisions) instead of soft floating cards.",
+      "Strict typographic tri-voice separation: Schibsted Grotesk for structural headings and controls, STIX Two Text for governing physical equations, and JetBrains Mono strictly for tabular numbers, seeds, parameters, and stdout logs.",
+      "Simultaneous mechanism-and-proof layouts: synchronous active compute bars sit inline with hatched idle straggler-wait tails.",
+      "High-contrast quantitative legibility across both live browser sessions (demo_server.py) and standalone offline single-file archives (dashboard.html)."
+    ],
+    "rules": [
+      {
+        "name": "The Provenance Polarity Rule",
+        "body": "Every hardware or telemetry table must visually separate PC1 (Viridian Measured Anchor stamp) from PC2–PC4 (Recessed Stone scenario stamp) so physical measurements and modeled ratios are distinguishable at a glance.",
+        "section": "colors"
+      },
+      {
+        "name": "The White-Free Series Rule",
+        "body": "Never plot a data series in white or low-contrast grey on vellum or cream chart stages; all four policies (#D9381E, #1D4ED8, #B45309, #0F766E) maintain high-contrast ink visibility on both interactive SVGs and Matplotlib PNG exports.",
+        "section": "colors"
+      },
+      {
+        "name": "The Heading Leads First Rule",
+        "body": "Every h1, h2, and h3 leads its container directly; never place a decorative kicker or eyebrow above a heading. Plate numbers and figure tags sit beside the heading in an inline baseline flex row (head-inline) after the heading element.",
+        "section": "typography"
+      },
+      {
+        "name": "The Strict Monospace Mandate Rule",
+        "body": "JetBrains Mono is reserved exclusively for numerical values, units, seeds, file paths, equations, and stdout logs—never as a decorative voice for ordinary prose.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline-Over-Halo Rule",
+        "body": "Never use zero-offset colored glows, glassmorphism (backdrop-filter), or neobrutalist hard offset shadows (4px 4px 0). Boundaries are drawn with 1px solid drafting lines.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do place h1, h2, and h3 as the first element of their header group, putting PLATE or FIG. badges beside them in a .head-inline flex row.",
+      "Do apply .num (font-variant-numeric: tabular-nums) and white-space: nowrap to all numeric table cells, parameter inputs, and KPI readouts.",
+      "Do preserve the explicit provenance distinction between PC1 (MEASURED WALL METER) and PC2–PC4 (MODELED SCENARIO) across every table and chart.",
+      "Do keep run_project.py's make_figures() synchronized with the monograph palette (#FAF8F3 figure ground, #D9381E, #1D4ED8, #B45309, #0F766E) and embed PNG provenance metadata."
+    ],
+    "donts": [
+      "Don't place kickers or eyebrows above headings anywhere in the interface.",
+      "Don't use generic rounded icon cards, nested card containers, or colored side-border stripes (border-left > 1px).",
+      "Don't use training-data default display fonts or apply monospace to body prose.",
+      "Don't claim or imply that PC2–PC4 hardware profiles or simulated round CO₂ emissions are physical meter measurements."
+    ]
+  }
+}

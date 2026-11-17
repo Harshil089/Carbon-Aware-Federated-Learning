@@ -1,0 +1,162 @@
+"""Create presentation from results (requires python-pptx only for deck creation)."""
+from pathlib import Path
+import csv,json
+from pptx import Presentation
+from pptx.util import Inches,Pt
+from pptx.enum.text import PP_ALIGN,MSO_ANCHOR
+from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR
+from pptx.dml.color import RGBColor
+
+BASE=Path(__file__).resolve().parent
+OUT=BASE/'Review_Presentation_19_Nov_2026.pptx'
+R=BASE/'results'
+cfg=json.loads((BASE/'config.json').read_text())
+def load(p):
+ with (R/p).open(encoding='utf-8-sig',newline='') as f:return list(csv.DictReader(f))
+summ=load('comparison_SIMULATION.csv');profile=load('node_benchmark_MEASURED_PLUS_SCENARIOS.csv');sens=load('sensitivity_ASSUMPTIONS.csv')
+navy=RGBColor(13,38,73); teal=RGBColor(29,174,161); off=RGBColor(244,248,253); txt=RGBColor(38,58,81); mute=RGBColor(92,108,128); white=RGBColor(255,255,255);orange=RGBColor(206,111,47);gray=RGBColor(216,226,236)
+prs=Presentation(); prs.slide_width=Inches(13.333);prs.slide_height=Inches(7.5)
+blank=prs.slide_layouts[6]
+
+def shape(sl,x,y,w,h,color,radius=True,line=None):
+ k=sl.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE,Inches(x),Inches(y),Inches(w),Inches(h))
+ k.fill.solid();k.fill.fore_color.rgb=color
+ k.line.fill.background() if line is None else None
+ if line is not None:k.line.color.rgb=line
+ return k
+
+def tx(sl,content,x,y,w,h,size=20,color=txt,bold=False,align=None,font='Aptos',margin=0.02):
+ box=sl.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h))
+ tf=box.text_frame;tf.clear();tf.word_wrap=True
+ tf.margin_left=Inches(margin);tf.margin_right=Inches(margin);tf.margin_top=Inches(0.01)
+ for j,line in enumerate(str(content).split('\n')):
+  p=tf.paragraphs[0] if j==0 else tf.add_paragraph()
+  p.text=line;p.font.name=font;p.font.size=Pt(size);p.font.bold=bold;p.font.color.rgb=color
+  p.space_after=Pt(6);p.alignment=align or PP_ALIGN.LEFT
+ return box
+
+def base(title,section='',num=0):
+ sl=prs.slides.add_slide(blank)
+ shape(sl,0,0,13.333,7.5,off,False)
+ shape(sl,0,0,13.333,.16,teal,False)
+ tx(sl,section.upper(),.55,.35,7,.27,12,teal,True)
+ tx(sl,title,.55,.83,12.35,.69,27,navy,True)
+ tx(sl,'FINAL REVIEW  •  19 NOV 2026  •  SIMULATION-BASED PROTOTYPE',.55,7.08,10,.2,9,mute)
+ tx(sl,f'{num:02d}',12.25,7.04,.5,.22,11,mute,True,PP_ALIGN.RIGHT)
+ return sl
+
+def bullet(sl,items,x,y,w,size=18,lineheight=.65):
+ for idx,item in enumerate(items):
+  shape(sl,x,y+idx*lineheight+.09,.11,.11,teal)
+  tx(sl,item,x+.25,y+idx*lineheight,w-.25,lineheight-.05,size,txt)
+
+def image(sl,file,x,y,w,h):
+ sl.shapes.add_picture(str(R/file),Inches(x),Inches(y),width=Inches(w),height=Inches(h))
+
+def bottom_note(sl,msg):
+ shape(sl,.55,6.50,12.22,.43,RGBColor(255,244,223))
+ tx(sl,msg,.70,6.59,11.8,.26,12,RGBColor(115,77,32),False)
+
+def summary_table(sl,x,y,w,h):
+ headers=['Policy','Accuracy','Time (s)','Energy (Wh)','CO₂ (g)','Hit rate']
+ t=sl.shapes.add_table(len(summ)+1,len(headers),Inches(x),Inches(y),Inches(w),Inches(h)).table
+ t.columns[0].width=Inches(3.12)
+ for j,head in enumerate(headers):t.cell(0,j).text=head
+ for i,row in enumerate(summ,1):
+  vals=[row['policy'],f"{float(row['final_accuracy_mean'])*100:.2f}%",row['mean_total_seconds_MODELED'],row['mean_total_Wh_MODELED'],row['mean_total_CO2_g_MODELED'],row['target_hit_rate']]
+  for j,v in enumerate(vals):t.cell(i,j).text=str(v)
+ for r in range(len(summ)+1):
+  for c in range(len(headers)):
+   cell=t.cell(r,c);cell.fill.solid();cell.fill.fore_color.rgb=navy if r==0 else white if r%2 else RGBColor(235,243,250)
+   cell.vertical_anchor=MSO_ANCHOR.MIDDLE
+   for p in cell.text_frame.paragraphs:
+    p.font.name='Aptos';p.font.size=Pt(13 if c else 13.5);p.font.bold=(r==0);p.font.color.rgb=white if r==0 else txt
+
+sl=prs.slides.add_slide(blank);shape(sl,0,0,13.333,7.5,navy,False);shape(sl,.58,.7,.11,5.75,teal,False)
+tx(sl,'FINAL PROJECT REVIEW · 19 NOVEMBER 2026',1.03,.92,10,.3,15,teal,True)
+tx(sl,'Optimizing the\nLatency–Carbon Trade-off\nin Federated Computing',1.03,1.60,11.3,3,37,white,True)
+tx(sl,'Four virtual clients  •  Real NumPy model training  •  Tabular Q-learning',1.05,5.22,11.4,.50,19,RGBColor(194,226,237))
+tx(sl,'One real electricity observation. All remaining hardware readings are hypothetical scenarios.',1.05,6.43,10.6,.46,15,RGBColor(244,194,134))
+
+sl=base('Problem, objective and current constraints','research overview',2)
+bullet(sl,['Problem: federated learning has competing accuracy, completion-time and energy objectives.',
+          'Research question: can an RL client scheduler improve the latency–electricity trade-off without unacceptable accuracy loss?',
+          'Current constraint: university labs inaccessible during examinations; only one physical meter reading is available.',
+          'Prototype choice: emulate four clients on a single 8 GB laptop; evaluate policies under documented scenarios.'],.65,1.8,11.9,size=20,lineheight=1.04)
+bottom_note(sl,'This is an exploratory simulation-based proof of concept, not a validated physical four-node deployment.')
+
+sl=base('Only one measured energy observation','measured evidence',3)
+for x,label,value in [(.65,'ENERGY REPORTED','0.065 kWh'),(4.87,'MEASURED DURATION','190 min'),(9.02,'AVERAGE METER POWER','20.53 W')]:
+ shape(sl,x,1.78,3.65,1.30,white);tx(sl,label,x+.21,1.99,3.20,.30,12,mute,True);tx(sl,value,x+.21,2.40,3.2,.50,25,navy,True)
+shape(sl,.65,3.48,11.9,1.48,navy)
+tx(sl,'0.065 kWh × 0.675 kg CO₂/kWh = 0.043875 kg CO₂ = 43.88 g CO₂',.92,3.85,11.3,.77,24,white,True)
+tx(sl,'CEA grid factor: 0.675 kg CO₂/kWh, all-India weighted average FY 2025–26, database v22.0 (Aug 2026).',.75,5.18,11.9,.52,17,txt)
+bottom_note(sl,'The meter measures energy, not CO₂. 20.53 W is low for a busy desktop; verify the measurement scope and meter units.')
+
+sl=base('One laptop simulates four federated clients','system architecture',4)
+shape(sl,4.78,1.63,3.76,1.10,navy);tx(sl,'CENTRAL AGGREGATOR + Q-LEARNING',5.02,1.96,3.3,.45,16,white,True,PP_ALIGN.CENTER)
+for i,n in enumerate(['PC1  •  8 GB','PC2  •  16 GB','PC3  •  32 GB / 8GB GPU','PC4  •  16 GB / 4GB GPU']):
+ x=.52+i*3.22
+ shape(sl,x,4.07,3.02,1.18,RGBColor(218,243,238))
+ tx(sl,n,x+.13,4.31,2.76,.40,15,navy,True,PP_ALIGN.CENTER)
+ tx(sl,'VIRTUAL CLIENT',x+.13,4.84,2.76,.21,11,mute,True,PP_ALIGN.CENTER)
+ ln=sl.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(6.66), Inches(2.73), Inches(x+1.51), Inches(4.07));ln.line.color.rgb=teal;ln.line.width=Pt(2)
+tx(sl,'Client updates → weighted FedAvg; scheduler chooses each round’s participating nodes',1.20,5.63,11.3,.55,18,txt,False,PP_ALIGN.CENTER)
+bottom_note(sl,'All four clients execute within one laptop process. Physical networking, security and GPU performance are not measured.')
+
+sl=base('Hardware profile: one measurement, three scenarios','energy modeling',5)
+image(sl,'node_energy_scenarios.png',.55,1.62,7.15,4.40)
+shape(sl,7.95,1.70,4.79,4.2,white)
+tx(sl,'Assumptions, not predictions',8.18,1.98,4.21,.38,20,navy,True)
+bullet(sl,['PC2: speed 1.10×, power 1.25×','PC3: speed 1.80×, power 2.45×','PC4: speed 1.35×, power 1.75×','Based on what-if ratios — not RAM or VRAM inference.'],8.18,2.50,4.22,14.5,lineheight=.77)
+bottom_note(sl,'Only PC1 0.065 kWh was observed. Other energy bars are computed hypothetical benchmark scenarios.')
+
+sl=base('Methods: FedAvg, heuristics and Q-learning','experimental design',6)
+shape(sl,.63,1.65,5.83,3.95,white);shape(sl,6.79,1.65,5.83,3.95,white)
+tx(sl,'Federated learning',.91,1.96,5.2,.42,21,navy,True)
+bullet(sl,['Synthetic non-IID three-class dataset','Four client-specific partitions','Real NumPy local softmax updates','Sample-weighted FedAvg aggregation'],.95,2.60,5.18,17,lineheight=.67)
+tx(sl,'Multi-objective Q-learning',7.05,1.96,5.20,.42,21,navy,True)
+bullet(sl,['State: accuracy bucket and round phase','Actions: any subset of 2–4 clients','Reward: accuracy gain − time penalty − carbon penalty − low-accuracy penalty','Compare against all-4, fastest-2 and energy-2 baselines'],7.10,2.59,5.0,15.5,lineheight=.69)
+tx(sl,'Modeled round time = slowest selected client + network + aggregation overhead',.88,5.88,11.75,.39,15,txt,True)
+bottom_note(sl,'Training/model accuracy are computed; communication latency, electrical power and emissions are modeled.')
+
+sl=base('Model accuracy on synthetic non-IID data','result 1',7)
+image(sl,'accuracy_by_round.png',.78,1.65,11.7,4.72)
+bottom_note(sl,'These are genuine simulated-client model predictions, NOT performance on physical PC1–PC4 or a public benchmark.')
+
+sl=base('Latency and grid-emission trade-off','result 2',8)
+image(sl,'cumulative_latency.png',.48,1.77,6.17,4.44)
+image(sl,'cumulative_carbon.png',6.78,1.77,6.05,4.44)
+bottom_note(sl,'Both timings and emissions are scenario-based model outputs; none are physical deployment measurements.')
+
+sl=base('What this prototype actually found','results summary',9)
+summary_table(sl,.55,1.84,12.12,3.07)
+tx(sl,'RL is not guaranteed to outperform simpler heuristics. Report accuracy, time, CO₂ and target-accuracy achievement together.',.77,5.19,11.9,.73,20,navy,True)
+bottom_note(sl,'Values are illustrative and sensitive to assumed CPU/GPU speed, power, idle load and reward weights.')
+
+sl=base('Uncertainty and reproducibility','scenario sensitivity',10)
+shape(sl,.58,1.70,7.15,3.66,white)
+header=['Policy','CO₂ P5','CO₂ Median','CO₂ P95'];rows=[[x['policy'],x['co2_g_p05_ASSUMED'],x['co2_g_median_ASSUMED'],x['co2_g_p95_ASSUMED']] for x in sens]
+t=sl.shapes.add_table(5,4,Inches(.75),Inches(1.98),Inches(6.65),Inches(3.05)).table;t.columns[0].width=Inches(2.65)
+for j,h in enumerate(header):t.cell(0,j).text=h
+for i,row in enumerate(rows,1):
+ for j,v in enumerate(row):t.cell(i,j).text=str(v)
+for r in range(5):
+ for c in range(4):
+  cell=t.cell(r,c);cell.fill.solid();cell.fill.fore_color.rgb=navy if r==0 else (white if r%2 else RGBColor(235,243,250))
+  for p in cell.text_frame.paragraphs:p.font.size=Pt(12);p.font.bold=(r==0);p.font.color.rgb=white if r==0 else txt
+shape(sl,7.94,1.70,4.78,3.66,white)
+tx(sl,'Reproducible workflow',8.16,1.99,4.2,.4,19,navy,True)
+bullet(sl,['Edit config.json assumptions','Run: python run_project.py','Review CSVs, figures and HTML dashboard','Execute tests.py (7 passing checks)'],8.18,2.57,4.10,15,lineheight=.61)
+tx(sl,'Ranges are deliberately selected ±35% power and ±30% speed scenarios for PC2–4 — not empirical confidence intervals.',.70,5.70,12.0,.61,16,txt)
+bottom_note(sl,'Scenario uncertainty demonstrates robustness limitations; it does not validate measured performance.')
+
+sl=base('Conclusion and physical validation plan','next steps',11)
+bullet(sl,['Achieved: four-client virtual FedAvg, tabular Q-learning scheduler, comparison baselines, reproducible logs and charts.',
+          'Not yet achieved: actual four-PC federation, validated power profiles, real network latency, or measured carbon savings.',
+          'After exams: confirm meter scope, collect repeated energy/idle readings on every PC, identify exact CPU/GPU models.',
+          'Then: deploy on lab LAN; log system energy per round, evaluate time/CO₂ to an equal accuracy target; repeat trials.'],.66,1.73,11.93,size=18,lineheight=1.05)
+shape(sl,.65,5.91,12,0.53,navy);tx(sl,'Ethical reporting: separate observed measurements from assumptions in every graph and table.',.87,6.04,11.5,.28,17,white,True)
+
+prs.save(OUT)
+print(f'Wrote {OUT} with {len(prs.slides)} slides')

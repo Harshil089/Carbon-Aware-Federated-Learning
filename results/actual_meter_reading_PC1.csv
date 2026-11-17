@@ -1,0 +1,2 @@
+﻿node,energy_kWh_MEASURED,duration_min_MEASURED,average_meter_power_W_CALCULATED,grid_factor_kg_CO2_per_kWh_CEA,grid_CO2_g_CALCULATED,evidence
+PC1,0.065,190,20.526315789473685,0.675,43.87500000000001,User-reported meter input

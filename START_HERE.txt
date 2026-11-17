@@ -1,0 +1,9 @@
+FEDERATED COMPUTING LAB
+
+Windows: double-click START_DEMO.bat.
+Keep the console open. The browser opens the live experiment console.
+Choose Quick demo, then click Run Simulation.
+Use Parameters to show the exact settings and Client replay to explain each round.
+
+Completed results also open offline in results/dashboard.html.
+See DEMO_GUIDE.md and README.md for instructions.

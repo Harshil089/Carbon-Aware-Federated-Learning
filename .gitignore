@@ -1,0 +1,22 @@
+# Python virtual environments & caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.matplotlib/
+
+# Node / Frontend dependencies & build cache
+frontend/node_modules/
+frontend/tsconfig.tsbuildinfo
+
+# Local runtime simulation runs
+runs/
+
+# OS files
+.DS_Store
+
+# Impeccable runtime scratch directories (keep config.json, design.json, surfaces/)
+.impeccable/questions/
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/config.local.json
