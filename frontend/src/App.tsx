@@ -99,6 +99,7 @@ export default function App() {
   const [hiddenPolicies, setHiddenPolicies] = useState<Set<string>>(new Set());
 
   const resultIdRef = useRef<string>('');
+  const runInFlightRef = useRef<boolean>(false);
   const logRef = useRef<HTMLPreElement>(null);
 
   const syncSettingsFromResults = useCallback((res: SimulationResults) => {
@@ -121,8 +122,10 @@ export default function App() {
   }, []);
 
   const poll = useCallback(async () => {
+    if (runInFlightRef.current) return;
     try {
       const state = await api<EngineState>('/api/state');
+      if (runInFlightRef.current) return;
       setEngine(state);
       if (state.status === 'failed') setError(state.message);
       if (state.result_id && state.result_id !== resultIdRef.current) {
@@ -225,25 +228,29 @@ export default function App() {
     e.preventDefault();
     if (offline || running) return;
     setError('');
+    runInFlightRef.current = true;
     setEngine((prev) => ({
       ...prev,
       status: 'running',
-      progress: 5,
-      message: 'Starting federated simulation…',
+      progress: 4,
+      message: 'Preparing client data & training RL scheduler…',
     }));
     const ticker = window.setInterval(() => {
       setEngine((prev) => {
         if (prev.status !== 'running' || prev.progress >= 92) return prev;
-        return { ...prev, progress: Math.min(92, prev.progress + 5) };
+        return { ...prev, progress: Math.min(92, prev.progress + 4) };
       });
-    }, 350);
+    }, 250);
     try {
       await api('/api/run', settings);
+      runInFlightRef.current = false;
       await poll();
     } catch (err) {
+      runInFlightRef.current = false;
       setError(err instanceof Error ? err.message : 'Run failed');
       setEngine((prev) => ({ ...prev, status: 'failed' }));
     } finally {
+      runInFlightRef.current = false;
       window.clearInterval(ticker);
     }
   }
