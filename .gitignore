@@ -14,9 +14,11 @@ runs/
 
 # OS files
 .DS_Store
+.vercel/
 
 # Impeccable runtime scratch directories (keep config.json, design.json, surfaces/)
 .impeccable/questions/
 .impeccable/mocks/
 .impeccable/review/
 .impeccable/config.local.json
+.vercel
