@@ -417,7 +417,7 @@ export default function App() {
       sub: 'Audit exact hyperparameters, PC1 physical meter anchor, per-client grid carbon intensities, Monte Carlo sensitivity, and live Python stdout.',
       theoryTitle: 'Analytical Mechanism: Physical Measurement Anchor & Scenario Sensitivity',
       theoryBody:
-        'Only PC1’s wall-meter reading (0.065 kWh over 190 min = 20.53 W mean power) is a physical measurement. PC2–PC4 speed/power ratios, network transfer delays, and ±35% power / ±30% speed Monte Carlo sensitivity quantiles are modeled research scenarios logged with deterministic random seeds.',
+        'PC1 (0.065 kWh over 190 min = 20.53 W mean power), PC2 and PC3 have physical wall-meter readings; PC4 is an estimated profile. PC4 speed/power ratios, network transfer delays, and ±35% power / ±30% speed Monte Carlo sensitivity quantiles are modeled research scenarios logged with deterministic random seeds.',
     },
   ];
   const activeIdx = Math.max(0, navItems.findIndex((n) => n.id === view));
@@ -500,10 +500,10 @@ export default function App() {
             </div>
             <div
               className="rp-row"
-              data-tip="Indicates that PC2–PC4 hardware profiles are calibrated synthetic scenarios. The backend parameterizes their compute speed and power draw relative to PC1."
+              data-tip="PC2 and PC3 power comes from wall-plug meter readings on a CIFAR-10 run. PC4 is an estimated profile. All are expressed relative to PC1."
             >
-              <span>PC2–PC4 Cluster</span>
-              <strong>Calibrated Scenarios</strong>
+              <span>PC2–PC4</span>
+              <strong>PC2–3 metered · PC4 estimated</strong>
             </div>
             <div
               className="rp-row"

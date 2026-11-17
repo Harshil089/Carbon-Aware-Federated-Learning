@@ -10,21 +10,21 @@ const SPRING_MORPH = { type: 'spring' as const, stiffness: 220, damping: 32, mas
 type RoundMode = 'rl' | 'all4';
 
 const STRAGGLER_BARS = [
-  { node: 'PC1 · i7-12700', watts: '20.53 W', workPct: 86, idlePct: 0, note: '16.75s straggler' },
-  { node: 'PC2 · Ultra 5 235', watts: '86.22 W', workPct: 68, idlePct: 18, note: '3.1s idle wait' },
-  { node: 'PC3 · Ultra 7 265K', watts: '209.4 W', workPct: 48, idlePct: 38, note: '209.4W + 6.4s idle' },
-  { node: 'PC4 · 4GB GPU Profile', watts: '35.92 W', workPct: 56, idlePct: 30, note: '5.2s idle wait' },
+  { node: 'PC1 · i7-12700', watts: '20.53 W', workPct: 86, idlePct: 0, note: '16.75 s · slowest, sets round time' },
+  { node: 'PC2 · Ultra 5 235', watts: '86.22 W', workPct: 68, idlePct: 18, note: '3.1 s idle' },
+  { node: 'PC3 · Ultra 7 265K', watts: '209.4 W', workPct: 48, idlePct: 38, note: '6.4 s idle at high power' },
+  { node: 'PC4 · 4GB GPU Profile', watts: '35.92 W', workPct: 56, idlePct: 30, note: '5.2 s idle' },
 ];
 
 const POLICY_POINTS = [
-  { name: 'LowestEnergy2', co2: 6.346, acc: 81.6, color: '#B45309', highlight: false },
-  { name: 'Fastest2', co2: 12.063, acc: 82.2, color: '#1D4ED8', highlight: false },
-  { name: 'Q_learning_RL', co2: 13.214, acc: 83.4, color: '#0F766E', highlight: true },
-  { name: 'FedAvg_all4', co2: 18.196, acc: 83.3, color: '#C82D14', highlight: false },
+  { name: 'LowestEnergy2', label: 'Lowest-power 2', co2: 6.346, acc: 81.6, color: '#B45309', highlight: false },
+  { name: 'Fastest2', label: 'Fastest 2', co2: 12.063, acc: 82.2, color: '#1D4ED8', highlight: false },
+  { name: 'Q_learning_RL', label: 'RL picker', co2: 13.214, acc: 83.4, color: '#0F766E', highlight: true },
+  { name: 'FedAvg_all4', label: 'All 4 (FedAvg)', co2: 18.196, acc: 83.3, color: '#C82D14', highlight: false },
 ];
 
 const HARDWARE_BARS = [
-  { name: 'PC1', sub: 'i7-12700', watts: 20.53, co2: null, acc: '0.065 kWh / 190 min' },
+  { name: 'PC1', sub: 'i7-12700', watts: 20.53, co2: null, acc: '0.065 kWh over 190 min' },
   { name: 'PC2', sub: 'Ultra 5 235', watts: 86.22, co2: 186.3, acc: '72.11% CIFAR-10' },
   { name: 'PC3', sub: 'Ultra 7 265K', watts: 209.4, co2: 324.0, acc: '72.46% CIFAR-10' },
 ];
@@ -100,7 +100,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               whileTap={{ scale: 0.97 }}
               transition={SPRING_SNAPPY}
             >
-              Console
+              Open console
               <ArrowRight size={14} />
             </motion.button>
           </nav>
@@ -116,14 +116,19 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
             animate={{ opacity: 1, y: 0 }}
             transition={SPRING_SMOOTH}
           >
-            <span className="lp-eyebrow">What the project is</span>
+            <span className="lp-eyebrow">Research prototype · federated learning</span>
             <h1 id="lp-project-title" className="lp-title">
-              Carbon- and Latency-Aware Federated Learning via Multi-Objective RL.
+              Train one AI model across many computers, with less waiting and less CO₂.
             </h1>
             <p className="lp-lead">
-              A Multi-Objective Reinforcement Learning (MORL) coordinator selects the optimal client
-              subset each training round—jointly balancing convergence accuracy, wall-clock latency,
-              and grid CO₂ emissions across heterogeneous devices.
+              In federated learning, several computers each train a shared model on their own data and
+              send only the updates to a coordinator. Normally the coordinator waits for every computer,
+              every round. Here, a reinforcement-learning agent learns which computers to pick each round,
+              keeping accuracy while cutting time and electricity.
+            </p>
+            <p className="lp-lead">
+              Results below come from a simulation of 4 PCs, with power figures taken from electricity-meter
+              readings on 3 of them.
             </p>
             <div className="lp-hero-actions">
               <motion.button
@@ -134,7 +139,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 whileTap={{ scale: 0.97 }}
                 transition={SPRING_SNAPPY}
               >
-                Open Experiment Console
+                Run the experiments
                 <ArrowRight size={15} />
               </motion.button>
             </div>
@@ -160,13 +165,13 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                       />
                     )}
                     <span className="lp-seg-text">
-                      {mode === 'rl' ? 'MORL Subset' : 'FedAvg All-4'}
+                      {mode === 'rl' ? 'RL picks PCs' : 'All 4 PCs'}
                     </span>
                   </button>
                 ))}
               </div>
               <span className={`lp-status-pill ${isRl ? 'is-good' : 'is-warn'}`}>
-                {isRl ? '−27.4% CO₂ · PC2 + PC4' : '18.196g CO₂ · All Nodes'}
+                {isRl ? '−27% CO₂ · picks PC2 + PC4' : '18.2 g CO₂ · all 4 PCs'}
               </span>
             </div>
 
@@ -242,11 +247,11 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 transition={{ duration: 2.6, repeat: Infinity, ease: 'easeOut' }}
               />
               <circle cx="200" cy="123" r="32" fill="#121316" stroke="#3A3832" strokeWidth="1.5" />
-              <text x="200" y="119" textAnchor="middle" fill="#FAF8F3" fontSize="11" fontWeight="700">
-                MORL
+              <text x="200" y="119" textAnchor="middle" fill="#FAF8F3" fontSize="9.5" fontWeight="700">
+                Coordinator
               </text>
               <text x="200" y="133" textAnchor="middle" fill="#D5CFC2" fontSize="9" fontFamily="monospace">
-                30W Coord
+                30 W
               </text>
 
               {/* PC1 */}
@@ -258,10 +263,10 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                   strokeWidth={isRl ? 1 : 1.5}
                 />
                 <text x="18" y="42" fill={isRl ? '#3A3832' : '#121316'} fontSize="11" fontWeight="600">
-                  {isRl ? 'PC1 · Standby' : 'PC1 · Bottleneck'}
+                  {isRl ? 'PC1 · Left out' : 'PC1 · Slowest'}
                 </text>
                 <text x="18" y="59" fill={isRl ? '#57534A' : '#C82D14'} fontSize="9.5" fontFamily="monospace">
-                  20.53W · Straggler
+                  20.53 W · all wait
                 </text>
               </g>
 
@@ -274,25 +279,25 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                   strokeWidth={isRl ? 1 : 1.5}
                 />
                 <text x="18" y="190" fill={isRl ? '#3A3832' : '#121316'} fontSize="11" fontWeight="600">
-                  {isRl ? 'PC3 · Skipped' : 'PC3 · Active'}
+                  {isRl ? 'PC3 · Left out' : 'PC3 · Training'}
                 </text>
                 <text x="18" y="207" fill="#C82D14" fontSize="9.5" fontFamily="monospace">
-                  209.4W · Peak CO₂
+                  209.4 W · most CO₂
                 </text>
               </g>
 
               {/* PC2 */}
               <g>
                 <rect x="264" y="22" width="128" height="52" rx="4" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
-                <text x="274" y="42" fill="#121316" fontSize="11" fontWeight="600">PC2 · Selected</text>
-                <text x="274" y="59" fill="#0F766E" fontSize="9.5" fontFamily="monospace">86.22W · 1.10× speed</text>
+                <text x="274" y="42" fill="#121316" fontSize="11" fontWeight="600">PC2 · Picked</text>
+                <text x="274" y="59" fill="#0F766E" fontSize="9.5" fontFamily="monospace">86 W · 1.1× faster</text>
               </g>
 
               {/* PC4 */}
               <g>
                 <rect x="264" y="170" width="128" height="52" rx="4" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
-                <text x="274" y="190" fill="#121316" fontSize="11" fontWeight="600">PC4 · Selected</text>
-                <text x="274" y="207" fill="#0F766E" fontSize="9.5" fontFamily="monospace">35.92W · 1.35× speed</text>
+                <text x="274" y="190" fill="#121316" fontSize="11" fontWeight="600">PC4 · Picked</text>
+                <text x="274" y="207" fill="#0F766E" fontSize="9.5" fontFamily="monospace">36 W · 1.35× faster</text>
               </g>
             </svg>
           </SpotlightCard>
@@ -301,18 +306,18 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
         {/* 2. Why it is needed */}
         <section className="lp-section" aria-labelledby="lp-need-title">
           <div className="lp-section-head">
-            <span className="lp-eyebrow">Why it is needed</span>
+            <span className="lp-eyebrow">The problem</span>
             <h2 id="lp-need-title" className="lp-h2">
-              Standard FedAvg wastes wall-clock time, idle power, and grid carbon.
+              When every computer joins every round, the fast ones sit idle waiting for the slowest.
             </h2>
           </div>
 
           <SpotlightCard className="lp-visual-card">
             <div className="lp-visual-head">
-              <span className="lp-visual-label">Synchronous All-4 Round Timeline</span>
+              <span className="lp-visual-label">One round with all 4 PCs (simulated)</span>
               <div className="lp-legend">
-                <span className="lp-legend-item"><i className="lp-dot lp-dot-work" /> Compute</span>
-                <span className="lp-legend-item"><i className="lp-dot lp-dot-idle" /> Wasted Idle Wait</span>
+                <span className="lp-legend-item"><i className="lp-dot lp-dot-work" /> Training</span>
+                <span className="lp-legend-item"><i className="lp-dot lp-dot-idle" /> Idle, waiting</span>
               </div>
             </div>
 
@@ -350,23 +355,24 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
 
           <div className="lp-grid-3">
             <SpotlightCard className="lp-card">
-              <h3 className="lp-card-title">Synchronous Straggler Stall</h3>
+              <h3 className="lp-card-title">Everyone waits for the slowest</h3>
               <p className="lp-card-body">
-                Every FedAvg round waits on the slowest device to finish local epochs before aggregation can begin.
+                A round ends only when the slowest computer has finished training and sent its update.
               </p>
             </SpotlightCard>
 
             <SpotlightCard className="lp-card">
-              <h3 className="lp-card-title">Idle Power &amp; Carbon Overhead</h3>
+              <h3 className="lp-card-title">Waiting still uses power</h3>
               <p className="lp-card-body">
-                Waiting clients and the 30 W coordinator draw continuous idle power while high-wattage nodes inflate CO₂.
+                Idle computers and the 30 W coordinator keep drawing electricity, and power-hungry PCs add the most CO₂.
               </p>
             </SpotlightCard>
 
             <SpotlightCard className="lp-card">
-              <h3 className="lp-card-title">Non-IID Heuristic Collapse</h3>
+              <h3 className="lp-card-title">Simple shortcuts lose accuracy</h3>
               <p className="lp-card-body">
-                Static Fastest-2 (82.2%) and Lowest-Energy-2 (81.6%) rules skew class coverage below RL selection (83.4%).
+                Each PC holds different data. Always using the 2 fastest (82.2%) or the 2 lowest-power PCs (81.6%)
+                sees less variety, so accuracy drops. The RL picker kept 83.4%.
               </p>
             </SpotlightCard>
           </div>
@@ -375,36 +381,36 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
         {/* 3. What we have achieved so far */}
         <section className="lp-section" aria-labelledby="lp-achieved-title">
           <div className="lp-section-head">
-            <span className="lp-eyebrow">What we have achieved so far</span>
+            <span className="lp-eyebrow">Results so far</span>
             <h2 id="lp-achieved-title" className="lp-h2">
-              Measured hardware power anchors, an 8-layer MORL engine, and verified CO₂ savings.
+              In simulation: the same accuracy as using every PC, with 27% less CO₂ and 13% less time.
             </h2>
           </div>
 
           <div className="lp-stats-row">
             <SpotlightCard className="lp-stat">
               <span className="lp-stat-val">83.4%</span>
-              <span className="lp-stat-label">Q-Learning RL accuracy (vs. 83.3% All-4)</span>
+              <span className="lp-stat-label">Accuracy with RL picking PCs (83.3% using all 4, effectively equal)</span>
             </SpotlightCard>
             <SpotlightCard className="lp-stat">
               <span className="lp-stat-val lp-stat-good">−27.4%</span>
-              <span className="lp-stat-label">CO₂ emissions (13.214 g vs. 18.196 g)</span>
+              <span className="lp-stat-label">CO₂ per training run vs. all 4 PCs (13.2 g vs. 18.2 g)</span>
             </SpotlightCard>
             <SpotlightCard className="lp-stat">
               <span className="lp-stat-val">−13.1%</span>
-              <span className="lp-stat-label">Round latency (294.3 s vs. 338.8 s)</span>
+              <span className="lp-stat-label">Total training time vs. all 4 PCs (294 s vs. 339 s)</span>
             </SpotlightCard>
             <SpotlightCard className="lp-stat">
-              <span className="lp-stat-val">10,000</span>
-              <span className="lp-stat-label">Calibrated telemetry rows across 4 nodes</span>
+              <span className="lp-stat-val">3 of 4</span>
+              <span className="lp-stat-label">PCs with real electricity-meter readings (PC4 is estimated)</span>
             </SpotlightCard>
           </div>
 
           <div className="lp-charts-grid">
             <SpotlightCard className="lp-visual-card">
               <div className="lp-visual-head">
-                <span className="lp-visual-label">Simulation Policy Trade-Off (CO₂ vs. Accuracy)</span>
-                <span className="lp-status-pill is-good">Pareto Winner: Q_learning_RL</span>
+                <span className="lp-visual-label">Simulated: CO₂ vs. accuracy for 4 ways of picking PCs</span>
+                <span className="lp-status-pill is-good">RL ≈ all-4 accuracy, 27% less CO₂</span>
               </div>
               <svg viewBox="0 0 420 215" className="lp-chart-svg" role="img" aria-label="Policy CO2 vs Accuracy chart">
                 {[40, 80, 120, 160].map((y) => (
@@ -479,7 +485,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                         fontWeight={p.highlight ? '700' : '500'}
                         fontFamily="monospace"
                       >
-                        {p.name} ({p.acc}%)
+                        {p.label} ({p.acc}%)
                       </text>
                     </g>
                   );
@@ -489,8 +495,8 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
 
             <SpotlightCard className="lp-visual-card">
               <div className="lp-visual-head">
-                <span className="lp-visual-label">Measured Wall-Plug Power &amp; CIFAR-10 CO₂</span>
-                <span className="lp-status-pill is-warn">+73.91% CO₂ on PC3 for +0.35 pp</span>
+                <span className="lp-visual-label">Real meter readings (separate CIFAR-10 image test)</span>
+                <span className="lp-status-pill is-warn">PC3: 28% faster, +74% CO₂</span>
               </div>
               <div className="lp-hw-bars">
                 {HARDWARE_BARS.map((node, i) => (
@@ -522,26 +528,27 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
 
           <div className="lp-grid-3">
             <SpotlightCard className="lp-card">
-              <h3 className="lp-card-title">Physical PC1–PC3 Wall-Plug Anchors</h3>
+              <h3 className="lp-card-title">Real power measurements</h3>
               <p className="lp-card-body">
-                Metered CIFAR-10 training on PC2 (86.22 W, 186.3 g CO₂) vs. PC3 (209.4 W, 324.0 g CO₂)
-                proves 28.40% faster runs cost +73.91% more CO₂ for +0.35 pp accuracy.
+                PC2 and PC3 ran the same image-recognition training job (CIFAR-10) on a wall-plug meter. PC3
+                finished 28% faster but used 74% more electricity, for only 0.35 points more accuracy. These
+                readings set the power figures in the simulation.
               </p>
             </SpotlightCard>
 
             <SpotlightCard className="lp-card">
-              <h3 className="lp-card-title">8-Layer PyTorch &amp; MORL Engine</h3>
+              <h3 className="lp-card-title">A working simulation</h3>
               <p className="lp-card-body">
-                Built <code>fl_pipeline/</code> with Non-IID MNIST partitions, MLP/CNN models, Q-learning
-                &amp; DQN selectors, preference sweeps, and 26 passing tests.
+                Python code that gives 4 virtual PCs different slices of data, trains a small classifier on
+                synthetic data, and compares the RL picker against simple rules over repeated runs.
               </p>
             </SpotlightCard>
 
             <SpotlightCard className="lp-card">
-              <h3 className="lp-card-title">Interactive Experiment Console</h3>
+              <h3 className="lp-card-title">Try it yourself</h3>
               <p className="lp-card-body">
-                Run custom MORL sweeps, inspect 4-node synchronous round timelines, and audit physical vs.
-                modeled hardware provenance live in the console.
+                Open the console to run your own experiments, replay which PCs were picked each round, and
+                see which numbers are measured and which are estimated.
               </p>
             </SpotlightCard>
           </div>
