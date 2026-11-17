@@ -97,10 +97,61 @@ export default function App() {
   const [chartTab, setChartTab] = useState<'tradeoff' | 'accuracy' | 'latency' | 'carbon' | 'png'>('tradeoff');
   const [pngFile, setPngFile] = useState('accuracy_by_round.png');
   const [hiddenPolicies, setHiddenPolicies] = useState<Set<string>>(new Set());
+  const [hoverTip, setHoverTip] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const resultIdRef = useRef<string>('');
   const runInFlightRef = useRef<boolean>(false);
   const logRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    const clampPos = (clientX: number, clientY: number) => {
+      const pad = 12;
+      const maxW = 320;
+      const estH = 88;
+      const x = Math.min(Math.max(pad, clientX + 14), window.innerWidth - maxW - pad);
+      const y = Math.min(Math.max(pad, clientY + 16), window.innerHeight - estH - pad);
+      return { x, y };
+    };
+
+    const onMouseOver = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement | null)?.closest('[data-tip]') as HTMLElement | null;
+      const text = target?.getAttribute('data-tip');
+      if (text) {
+        const { x, y } = clampPos(e.clientX, e.clientY);
+        setHoverTip({ text, x, y });
+      }
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement | null)?.closest('[data-tip]') as HTMLElement | null;
+      const text = target?.getAttribute('data-tip');
+      if (text) {
+        const { x, y } = clampPos(e.clientX, e.clientY);
+        setHoverTip({ text, x, y });
+      }
+    };
+
+    const onMouseOut = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement | null)?.closest('[data-tip]') as HTMLElement | null;
+      if (!target) return;
+      const related = (e.relatedTarget as HTMLElement | null)?.closest('[data-tip]') as HTMLElement | null;
+      if (related !== target) {
+        setHoverTip(related?.getAttribute('data-tip') ? {
+          text: related.getAttribute('data-tip')!,
+          ...clampPos(e.clientX, e.clientY),
+        } : null);
+      }
+    };
+
+    document.addEventListener('mouseover', onMouseOver);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseout', onMouseOut);
+    return () => {
+      document.removeEventListener('mouseover', onMouseOver);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseout', onMouseOut);
+    };
+  }, []);
 
   const syncSettingsFromResults = useCallback((res: SimulationResults) => {
     const run = res.parameters?.run;
@@ -389,7 +440,10 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <div className="app-frame">
         <aside className="nav-rail" aria-label="Monograph plate navigation">
-          <div className="brand">
+          <div
+            className="brand"
+            data-tip="Workbench identity header for the 4-plate Federated Computing Lab. Connects the React UI to the FastAPI simulation backend and precomputed baseline artifacts."
+          >
             <div className="emblem" aria-hidden="true">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="3" />
@@ -416,6 +470,7 @@ export default function App() {
                   role="tab"
                   aria-selected={active}
                   className={`nav-step ${active ? 'active' : ''}`}
+                  data-tip={`Plate ${item.num} (${item.label}): ${item.desc}. Switches the active route to /${item.id === 'overview' ? 'overview' : item.id} and renders its corresponding React plate.`}
                   onClick={() => navigate(item.id)}
                 >
                   {active && (
@@ -436,25 +491,42 @@ export default function App() {
           </nav>
 
           <div className="rail-provenance">
-            <div className="rp-row">
+            <div
+              className="rp-row"
+              data-tip="Displays the physical power meter anchor measured on PC1 (20.53 W, 0.065 kWh). Used by the Python energy model to ground simulated client wattage."
+            >
               <span>PC1 Meter Anchor</span>
               <strong className="num">20.53 W (0.065 kWh)</strong>
             </div>
-            <div className="rp-row">
+            <div
+              className="rp-row"
+              data-tip="Indicates that PC2–PC4 hardware profiles are calibrated synthetic scenarios. The backend parameterizes their compute speed and power draw relative to PC1."
+            >
               <span>PC2–PC4 Cluster</span>
               <strong>Calibrated Scenarios</strong>
             </div>
-            <div className="rp-row">
+            <div
+              className="rp-row"
+              data-tip="Shows the default electricity grid carbon intensity (0.675 kg CO₂/kWh). Multiplied by modeled kWh in the backend to compute per-round carbon emissions."
+            >
               <span>Default Grid Factor</span>
               <strong className="num">0.675 kg CO₂/kWh</strong>
             </div>
           </div>
 
           <div className="rail-foot">
-            <button type="button" className="btn-tune" onClick={() => navigate('landing')}>
+            <button
+              type="button"
+              className="btn-tune"
+              data-tip="Returns from the workbench plates to the Monograph Cover landing view. Updates browser history to the root route without clearing loaded results."
+              onClick={() => navigate('landing')}
+            >
               ← Monograph Cover
             </button>
-            <span className={`status-pill ${badgeClass}`}>
+            <span
+              className={`status-pill ${badgeClass}`}
+              data-tip="Live connection and simulation status indicator. Polls /api/status to reflect idle, running, completed, or offline archive mode."
+            >
               <motion.span
                 className="status-dot"
                 animate={engine.status === 'running' ? { scale: [1, 1.35, 1], opacity: [1, 0.5, 1] } : {}}
@@ -464,6 +536,7 @@ export default function App() {
             </span>
             <a
               className="btn-pill"
+              data-tip="Downloads the current run's CSVs, JSON results, and generated charts. Requests /api/export?run=... from the backend or falls back to static CSV offline."
               href={
                 offline
                   ? 'comparison_SIMULATION.csv'
@@ -490,6 +563,7 @@ export default function App() {
                 type="button"
                 className="btn-tune"
                 disabled={activeIdx <= 0}
+                data-tip="Navigates to the previous workbench plate in sequence. Updates the active view state and browser URL."
                 onClick={() => navigate(navItems[Math.max(0, activeIdx - 1)].id)}
               >
                 ← Prev Plate
@@ -498,6 +572,7 @@ export default function App() {
                 type="button"
                 className="btn-tune"
                 disabled={activeIdx >= navItems.length - 1}
+                data-tip="Navigates to the next workbench plate in sequence. Updates the active view state and browser URL."
                 onClick={() => navigate(navItems[Math.min(navItems.length - 1, activeIdx + 1)].id)}
               >
                 Next Plate →
@@ -521,6 +596,7 @@ export default function App() {
                       type="button"
                       className={preset === 'quick' ? 'active' : ''}
                       disabled={running || offline}
+                      data-tip="Loads the fast Quick Demo parameter preset (fewer rounds and episodes). Updates local form state before posting to /api/run."
                       onClick={() => applyPreset('quick')}
                     >
                       Quick demo
@@ -529,6 +605,7 @@ export default function App() {
                       type="button"
                       className={preset === 'full' ? 'active' : ''}
                       disabled={running || offline}
+                      data-tip="Loads the Full Experiment parameter preset (20 rounds, 130 episodes). Matches the default baseline run configuration sent to /api/run."
                       onClick={() => applyPreset('full')}
                     >
                       Full experiment
@@ -538,12 +615,12 @@ export default function App() {
                   <div className="inline-params">
                     {(
                       [
-                        ['rounds', 'Rounds', 1, 100, 1],
-                        ['episodes', 'Episodes', 1, 500, 1],
-                        ['target', 'Target %', 0.01, 100, 'any'],
+                        ['rounds', 'Rounds', 1, 100, 1, 'Sets the number of federated aggregation rounds per trial. Sent to the Python simulator to bound the outer FL training loop.'],
+                        ['episodes', 'Episodes', 1, 500, 1, 'Sets the number of Q-Learning training episodes before policy evaluation. Controls how many episodes the RL agent explores client-subset actions.'],
+                        ['target', 'Target %', 0.01, 100, 'any', 'Sets the target validation accuracy percentage for time-to-target metrics. Normalized to [0, 1] and evaluated by the Python backend per round.'],
                       ] as const
-                    ).map(([key, label, min, max, step]) => (
-                      <div className="chip-field" key={key}>
+                    ).map(([key, label, min, max, step, tip]) => (
+                      <div className="chip-field" key={key} data-tip={tip}>
                         <label htmlFor={key}>{label}</label>
                         <input
                           id={key}
@@ -562,7 +639,12 @@ export default function App() {
                 </div>
 
                 <div className="deck-right">
-                  <button type="button" className="btn-tune" onClick={() => setDrawerOpen((o) => !o)}>
+                  <button
+                    type="button"
+                    className="btn-tune"
+                    data-tip="Toggles the advanced hyperparameter drawer below the control deck. Exposes repeat trials, sensitivity samples, local epochs, learning rate, seed, and reward weights."
+                    onClick={() => setDrawerOpen((o) => !o)}
+                  >
                     <SlidersHorizontal size={13} />
                     {drawerOpen ? 'Hide Options' : 'More Options'}
                   </button>
@@ -571,11 +653,18 @@ export default function App() {
                     className="btn-run"
                     disabled={running || offline}
                     whileTap={{ scale: 0.98 }}
+                    data-tip="Submits the current simulation parameters to POST /api/run. Starts a background Python simulation and streams progress to the UI."
                   >
                     <Play size={13} />
                     {running ? 'Running…' : offline ? 'Offline' : 'Run Simulation'}
                   </motion.button>
-                  <button type="button" className="btn-stop" disabled={!running || offline} onClick={handleStop}>
+                  <button
+                    type="button"
+                    className="btn-stop"
+                    disabled={!running || offline}
+                    data-tip="Aborts the active simulation run. Sends POST /api/stop to terminate the running Python subprocess."
+                    onClick={handleStop}
+                  >
                     <Square size={12} /> Stop
                   </button>
                 </div>
@@ -592,16 +681,16 @@ export default function App() {
                   >
                     {(
                       [
-                        ['repeats', 'Repeat trials', 1, 20, 1],
-                        ['sensitivity', 'Sensitivity samples', 1, 100, 1],
-                        ['local_epochs', 'Local epochs', 1, 20, 1],
-                        ['learning_rate', 'Learning rate (η)', 0.001, 2, 0.001],
-                        ['seed', 'Random seed', 0, 2147483647, 1],
-                        ['latency_weight', 'Latency penalty (w_lat)', 0, 100, 0.001],
-                        ['carbon_weight', 'Carbon penalty (w_co2)', 0, 100, 0.01],
+                        ['repeats', 'Repeat trials', 1, 20, 1, 'Number of independent Monte Carlo trials per policy. Averaged by the backend to compute mean and standard deviation metrics.'],
+                        ['sensitivity', 'Sensitivity samples', 1, 100, 1, 'Number of grid carbon and hardware sensitivity samples evaluated. Drives the scenario sensitivity table in Plate 04.'],
+                        ['local_epochs', 'Local epochs', 1, 20, 1, 'Local SGD epochs each selected client runs per federated round. Directly scales per-round compute time and energy in the Python model.'],
+                        ['learning_rate', 'Learning rate (η)', 0.001, 2, 0.001, 'Step size η for local client gradient updates. Passed to the federated trainer to control convergence speed and stability.'],
+                        ['seed', 'Random seed', 0, 2147483647, 1, 'Deterministic PRNG seed for data partitioning and RL exploration. Ensures reproducible simulation runs across identical parameter sets.'],
+                        ['latency_weight', 'Latency penalty (w_lat)', 0, 100, 0.001, 'Reward penalty weight w_lat on round latency in Q-Learning. Higher values steer the RL policy toward faster client subsets.'],
+                        ['carbon_weight', 'Carbon penalty (w_co2)', 0, 100, 0.01, 'Reward penalty weight w_co2 on modeled CO₂ emissions in Q-Learning. Higher values steer the RL policy toward lower-carbon client subsets.'],
                       ] as const
-                    ).map(([key, label, min, max, step]) => (
-                      <div className="drawer-field" key={key}>
+                    ).map(([key, label, min, max, step, tip]) => (
+                      <div className="drawer-field" key={key} data-tip={tip}>
                         <label htmlFor={key}>{label}</label>
                         <input
                           id={key}
@@ -620,7 +709,10 @@ export default function App() {
                 )}
               </AnimatePresence>
 
-              <div className="deck-progress">
+              <div
+                className="deck-progress"
+                data-tip="Displays live simulation progress percentage and status messages. Polled from /api/status while the Python backend executes."
+              >
                 <div className="p-track">
                   <motion.div
                     className="p-fill"
@@ -652,7 +744,10 @@ export default function App() {
               >
                 <div className="step-kicker num">STEP 2 · KEY TAKEAWAY</div>
                 <div className="editorial-strip" aria-label="Empirical summary ledger">
-                  <div className="rib-cell lead">
+                  <div
+                    className="rib-cell lead"
+                    data-tip="Highlights the Q-Learning RL policy's final mean accuracy and CO₂ savings versus FedAvg All 4. Computed from the active simulation's summary JSON."
+                  >
                     <span className="rib-label">Q-Learning RL Outcome</span>
                     <b className="rib-val num">
                       {kpis?.rl ? `${(Number(kpis.rl.final_accuracy_mean) * 100).toFixed(1)}%` : '—'}
@@ -661,7 +756,10 @@ export default function App() {
                       {kpis?.rlCo2Save ? `−${kpis.rlCo2Save}% CO₂ vs. FedAvg All 4` : 'Dynamic 2–4 client subset'}
                     </span>
                   </div>
-                  <div className="rib-cell">
+                  <div
+                    className="rib-cell"
+                    data-tip="Shows the highest final mean accuracy achieved across all four evaluated policies. Derived by ranking policy summaries in the loaded results."
+                  >
                     <span className="rib-label">Highest Mean Accuracy</span>
                     <b className="rib-val num">
                       {kpis ? `${(Number(kpis.bestAcc.final_accuracy_mean) * 100).toFixed(1)}%` : '—'}
@@ -670,7 +768,10 @@ export default function App() {
                       {kpis ? POLICY_META[kpis.bestAcc.policy]?.label ?? kpis.bestAcc.policy : 'Loading…'}
                     </span>
                   </div>
-                  <div className="rib-cell">
+                  <div
+                    className="rib-cell"
+                    data-tip="Shows the lowest modeled cumulative CO₂ emissions across all policies. Calculated from modeled client energy and grid carbon intensity."
+                  >
                     <span className="rib-label">Lowest Modeled Carbon</span>
                     <b className="rib-val num">
                       {kpis ? `${Number(kpis.lowCo2.mean_total_CO2_g_MODELED).toFixed(2)} g` : '—'}
@@ -679,7 +780,10 @@ export default function App() {
                       {kpis ? POLICY_META[kpis.lowCo2.policy]?.label ?? kpis.lowCo2.policy : 'Modeled CO₂'}
                     </span>
                   </div>
-                  <div className="rib-cell">
+                  <div
+                    className="rib-cell"
+                    data-tip="Shows the lowest modeled cumulative round latency across all policies, alongside wall-clock execution time. Aggregated from per-round simulated seconds."
+                  >
                     <span className="rib-label">Lowest Cumulative Latency</span>
                     <b className="rib-val num">
                       {kpis ? `${Number(kpis.lowLat.mean_total_seconds_MODELED).toFixed(1)} s` : '—'}
@@ -708,19 +812,20 @@ export default function App() {
                       <div className="chart-tabs" role="tablist" aria-label="Chart selector">
                         {(
                           [
-                            ['tradeoff', 'Pareto'],
-                            ['accuracy', 'Accuracy'],
-                            ['latency', 'Latency'],
-                            ['carbon', 'Carbon'],
-                            ['png', 'PNGs'],
+                            ['tradeoff', 'Pareto', 'Switches to the Accuracy vs. Modeled CO₂ Pareto scatter plot. Renders summary policy points from results.summary via ParetoChart.'],
+                            ['accuracy', 'Accuracy', 'Switches to the per-round validation accuracy trajectory chart. Plots results.rows accuracy against the target threshold.'],
+                            ['latency', 'Latency', 'Switches to the cumulative modeled latency trajectory chart. Plots cum_latency across federated rounds from results.rows.'],
+                            ['carbon', 'Carbon', 'Switches to the cumulative modeled CO₂ trajectory chart. Plots cum_co2 across federated rounds from results.rows.'],
+                            ['png', 'PNGs', 'Switches to static Matplotlib PNG figures generated by the Python backend. Loads images from results.artifact_prefix.'],
                           ] as const
-                        ).map(([id, label]) => (
+                        ).map(([id, label, tip]) => (
                           <button
                             key={id}
                             type="button"
                             role="tab"
                             aria-selected={chartTab === id}
                             className={`ctab ${chartTab === id ? 'active' : ''}`}
+                            data-tip={tip}
                             onClick={() => setChartTab(id)}
                           >
                             {label}
@@ -736,6 +841,7 @@ export default function App() {
                             key={k}
                             type="button"
                             className={`ppill ${hiddenPolicies.has(k) ? 'muted' : ''}`}
+                            data-tip={`Toggles ${m.label} visibility in the active SVG chart. Updates the local hiddenPolicies set without re-fetching backend data.`}
                             onClick={() => togglePolicy(k)}
                           >
                             <i style={{ background: m.color }} />
@@ -812,11 +918,11 @@ export default function App() {
                       <table className="compact-matrix-table" aria-label="Policy comparison">
                         <thead>
                           <tr>
-                            <th>Policy</th>
-                            <th>Acc</th>
-                            <th>Latency</th>
-                            <th>CO₂ (Δ All-4)</th>
-                            <th>Hit</th>
+                            <th data-tip="Client selection policy name and short strategy tag. Maps backend policy IDs to display labels via POLICY_META.">Policy</th>
+                            <th data-tip="Final mean validation accuracy across repeat trials. Computed from final_accuracy_mean in results.summary.">Acc</th>
+                            <th data-tip="Mean cumulative modeled latency in seconds. Aggregated from mean_total_seconds_MODELED in results.summary.">Latency</th>
+                            <th data-tip="Mean cumulative modeled CO₂ emissions in grams and percentage delta vs. FedAvg All 4. Derived from mean_total_CO2_g_MODELED.">CO₂ (Δ All-4)</th>
+                            <th data-tip="Fraction of repeat trials that reached the target accuracy threshold. Read from target_hit_rate in results.summary.">Hit</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -833,7 +939,11 @@ export default function App() {
                             const deltaPct = ((thisCo2 - baseCo2) / Math.max(1e-6, baseCo2)) * 100;
                             const accPct = Number(s.final_accuracy_mean) * 100;
                             return (
-                              <tr key={s.policy} className={isRl ? 'rl-row' : ''}>
+                              <tr
+                                key={s.policy}
+                                className={isRl ? 'rl-row' : ''}
+                                data-tip={`${m.label} (${m.strategy || m.short}): ${accPct.toFixed(1)}% accuracy, ${thisCo2.toFixed(2)} g CO₂. Summarizes this policy's multi-trial outcome from the Python results JSON.`}
+                              >
                                 <td>
                                   <div className="policy-cell-main">
                                     <span className="policy-dot" style={{ background: m.color }} />
@@ -909,7 +1019,10 @@ export default function App() {
                 {r && t && q && infra && (
                   <>
                     <div className="spec-grid">
-                      <article className="spec-card">
+                      <article
+                        className="spec-card"
+                        data-tip="Displays execution hyperparameters for the active run. Read from results.parameters.run in the backend JSON."
+                      >
                         <div className="head-inline">
                           <h3>Run Settings</h3>
                           <span className="plate-tag num">EXECUTION</span>
@@ -924,7 +1037,10 @@ export default function App() {
                         </dl>
                       </article>
 
-                      <article className="spec-card">
+                      <article
+                        className="spec-card"
+                        data-tip="Summarizes the FedAvg classifier architecture and synthetic non-IID dataset split. Read from results.parameters.training."
+                      >
                         <div className="head-inline">
                           <h3>Model &amp; Data</h3>
                           <span className="plate-tag num">FEDAVG</span>
@@ -939,7 +1055,10 @@ export default function App() {
                         </dl>
                       </article>
 
-                      <article className="spec-card">
+                      <article
+                        className="spec-card"
+                        data-tip="Summarizes the FedAvg classifier architecture and synthetic non-IID dataset split. Read from results.parameters.training."
+                      >
                         <div className="head-inline">
                           <h3>Tabular Q-Learning</h3>
                           <span className="plate-tag num">RL AGENT</span>
@@ -954,7 +1073,10 @@ export default function App() {
                         </dl>
                       </article>
 
-                      <article className="spec-card">
+                      <article
+                        className="spec-card"
+                        data-tip="Summarizes the FedAvg classifier architecture and synthetic non-IID dataset split. Read from results.parameters.training."
+                      >
                         <div className="head-inline">
                           <h3>Reward &amp; Cluster</h3>
                           <span className="plate-tag num">INFRA</span>
@@ -991,21 +1113,25 @@ export default function App() {
                         <table>
                           <thead>
                             <tr>
-                              <th>Client</th>
-                              <th>RAM / VRAM</th>
-                              <th>Speed Ratio</th>
-                              <th>Active Power</th>
-                              <th>Idle Power</th>
-                              <th>Network Delay</th>
-                              <th>Grid Carbon Intensity (CI)</th>
-                              <th>Provenance Status</th>
+                              <th data-tip="Client node identifier (PC1–PC4). Maps to hardware profiles in results.parameters.infrastructure.clients.">Client</th>
+                              <th data-tip="System RAM and GPU VRAM capacity per client. Used for cluster hardware characterization.">RAM / VRAM</th>
+                              <th data-tip="Compute speed multiplier relative to PC1 (1.00×). Scales per-round local training duration in the Python simulator.">Speed Ratio</th>
+                              <th data-tip="Active training power draw in Watts, anchored to PC1's 20.53 W meter reading. Multiplied by active time to compute energy.">Active Power</th>
+                              <th data-tip="Assumed idle power draw in Watts while waiting for stragglers. Added to active energy during synchronization.">Idle Power</th>
+                              <th data-tip="Assumed network round-trip delay in seconds. Added to compute time to form per-round latency.">Network Delay</th>
+                              <th data-tip="Electricity grid carbon intensity in kg CO₂/kWh. Multiplied by total kWh to compute per-round CO₂ emissions.">Grid Carbon Intensity (CI)</th>
+                              <th data-tip="Indicates whether power values are physically metered (PC1) or modeled scenarios (PC2–PC4). Enforces measurement provenance.">Provenance Status</th>
                             </tr>
                           </thead>
                           <tbody>
                             {infra.clients.map((n) => {
                               const nodeCi = CALIBRATED_NODE_CI[n.name] ?? n.grid_kgco2_per_kwh ?? infra.grid_kg_co2_per_kwh;
                               return (
-                                <tr key={n.name} className={n.name === 'PC1' ? 'rl-row' : ''}>
+                                <tr
+                                  key={n.name}
+                                  className={n.name === 'PC1' ? 'rl-row' : ''}
+                                  data-tip={`${n.name}: ${n.relative_speed.toFixed(2)}× speed, ${(infra.reference_mean_power_w * n.active_power_ratio_to_PC1).toFixed(2)} W active, ${Number(nodeCi).toFixed(3)} kg CO₂/kWh. Parameterizes this client's latency and energy in the Python simulator.`}
+                                >
                                   <td className="num"><strong>{n.name}</strong></td>
                                   <td className="num">{n.ram_gb} GB / {n.gpu_vram_gb} GB</td>
                                   <td className="num">{n.relative_speed.toFixed(2)}×</td>
@@ -1040,7 +1166,7 @@ export default function App() {
                           </div>
                         </div>
                         <div className="scroll">
-                          <table>
+                          <table data-tip="Monte Carlo sensitivity quantiles across perturbed PC2–PC4 hardware scenarios. Read from results.sensitivity generated by the backend.">
                             <thead>
                               <tr>
                                 <th>Policy</th>
@@ -1133,7 +1259,11 @@ export default function App() {
                       <p className="panel-sub">Real-time output from run_project.py subprocess.</p>
                     </div>
                   </div>
-                  <pre ref={logRef} className="log-box">
+                  <pre
+                    ref={logRef}
+                    className="log-box"
+                    data-tip="Streams live stdout/stderr execution logs from the Python simulation process. Updated via /api/status polling during active runs."
+                  >
                     {engine.log.length ? engine.log.join('\n') : 'No simulation has been triggered in this browser session yet. Click "Run Simulation" above to stream live Python execution logs.'}
                   </pre>
                 </div>
@@ -1152,6 +1282,15 @@ export default function App() {
           </footer>
         </main>
       </div>
+      {hoverTip && (
+        <div
+          className="hover-tip-card"
+          role="tooltip"
+          style={{ left: hoverTip.x, top: hoverTip.y }}
+        >
+          {hoverTip.text}
+        </div>
+      )}
     </MotionConfig>
   );
 }

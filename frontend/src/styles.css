@@ -2206,3 +2206,21 @@ pre {
     gap: 2px;
   }
 }
+
+.hover-tip-card {
+  position: fixed;
+  z-index: 9999;
+  max-width: 320px;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(18, 19, 22, 0.22);
+  padding: 8px 11px;
+  font-family: var(--sans);
+  font-size: 12px;
+  line-height: 1.4;
+  letter-spacing: 0.005em;
+}
+
