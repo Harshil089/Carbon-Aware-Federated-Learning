@@ -1,5 +1,7 @@
 # Physical validation after laboratory reopening
 
+For the concrete run sheet (phases, repeats, recording format), see [MEASUREMENT_PLAN.md](MEASUREMENT_PLAN.md).
+
 1. Inventory PC1–PC4 and coordinator (CPU exact model, GPU model, RAM, OS, power plan, software versions, cooling). Record whether code actually uses GPU.
 2. Confirm meter units, error/accuracy class, kWh resolution and whether monitors/peripherals are inside the measurement boundary.
 3. Record starting and ending kWh and precise timestamp for an idle baseline on **each** machine.
