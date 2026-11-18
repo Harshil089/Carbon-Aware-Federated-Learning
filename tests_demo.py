@@ -13,6 +13,7 @@ import urllib.request
 import urllib.error
 import zipfile
 import io
+from unittest import mock
 import os
 os.environ.setdefault('FCL_KEEP_RUNS','100000')  # safety net: live-run test must never prune real runs/
 import demo_server as d
@@ -58,6 +59,9 @@ class ExecutionTests(unittest.TestCase):
                 self.assertGreater((out/name).stat().st_size,1000)
 
 class HttpTests(unittest.TestCase):
+    def setUp(self):
+        self.runs=tempfile.TemporaryDirectory();self.addCleanup(self.runs.cleanup)
+        patcher=mock.patch.object(d,'RUNS',Path(self.runs.name));patcher.start();self.addCleanup(patcher.stop)
     def test_live_run_export_and_cancellation(self):
         with d.LOCK:d.STATE.update(status='idle',progress=0,message='Ready',run_id=None,result_id='baseline',log=[],cancel_requested=False,process=None)
         server=d.ThreadingHTTPServer(('127.0.0.1',0),d.Handler)

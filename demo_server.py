@@ -23,7 +23,9 @@ STATE={'status':'idle','progress':0,'message':'Ready to run','run_id':None,'resu
 PIPELINE_CACHE=None
 PIPELINE_LOCK=threading.Lock()
 
-def result_dir(result_id):return server_common.result_dir(result_id)
+RUNS=BASE/'runs'  # tests point this at a temp folder so they never touch real runs
+
+def result_dir(result_id):return server_common.result_dir(result_id,RUNS)
 
 def read_results(result_id):return server_common.read_results_from(result_dir(result_id),result_id)
 
@@ -54,8 +56,8 @@ def run_worker(values,run_id):
             elif code==0:
                 read_results(run_id)
                 STATE.update(status='complete',progress=100,message='Simulation complete',result_id=run_id)
-                (BASE/'runs'/'latest.json').write_text(json.dumps({'result_id':run_id}),encoding='utf-8')
-                try:prune_runs(BASE/'runs')
+                (RUNS/'latest.json').write_text(json.dumps({'result_id':run_id}),encoding='utf-8')
+                try:prune_runs(RUNS)
                 except Exception:pass
             else:STATE.update(status='failed',message=f'Simulation exited with code {code}. See the run log.')
     except Exception as exc:
@@ -180,7 +182,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--port',type=int,default=8765);parser.add_argument('--no-browser',action='store_true');args=parser.parse_args()
-    latest=BASE/'runs'/'latest.json'
+    latest=RUNS/'latest.json'
     if latest.exists():
         try:
             value=json.loads(latest.read_text())['result_id'];read_results(value);STATE['result_id']=value
