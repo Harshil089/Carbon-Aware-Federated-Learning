@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import time
 from pathlib import Path
 from typing import List, Optional, Tuple
 import numpy as np
@@ -45,6 +46,7 @@ class LocalTrainResult:
     num_samples: int
     initial_loss: float
     final_loss: float
+    train_seconds: float = 0.0
 
 
 @dataclass
@@ -117,10 +119,12 @@ class FederatedClient:
         onehot = np.eye(num_classes, dtype=float)[y]
         init_loss = cross_entropy_loss(w, part)
 
+        t0 = time.perf_counter()
         for _ in range(epochs):
             probs = softmax_probs(x @ w)
             grad = (x.T @ (probs - onehot)) / len(y)
             w -= lr * grad
+        train_seconds = time.perf_counter() - t0
 
         final_loss = cross_entropy_loss(w, part)
         return LocalTrainResult(
@@ -130,6 +134,7 @@ class FederatedClient:
             num_samples=int(len(y)),
             initial_loss=init_loss,
             final_loss=final_loss,
+            train_seconds=train_seconds,
         )
 
 

@@ -17,11 +17,28 @@ const STRAGGLER_BARS = [
 ];
 
 const POLICY_POINTS = [
-  { name: 'LowestEnergy2', label: 'Lowest-power 2', co2: 6.346, acc: 81.6, color: '#B45309', highlight: false },
-  { name: 'Fastest2', label: 'Fastest 2', co2: 12.063, acc: 82.2, color: '#1D4ED8', highlight: false },
-  { name: 'Q_learning_RL', label: 'RL picker', co2: 13.214, acc: 83.4, color: '#0F766E', highlight: true },
-  { name: 'FedAvg_all4', label: 'All 4 (FedAvg)', co2: 18.196, acc: 83.3, color: '#C82D14', highlight: false },
+  { name: 'LowestEnergy2', label: 'Lowest-power 2', co2: 6.346, acc: 82.2, color: '#B45309', highlight: false },
+  { name: 'Fastest2', label: 'Fastest 2', co2: 12.063, acc: 82.3, color: '#1D4ED8', highlight: false },
+  { name: 'Q_learning_RL', label: 'RL picker', co2: 10.242, acc: 82.6, color: '#0F766E', highlight: true },
+  { name: 'FedAvg_all4', label: 'All 4 (FedAvg)', co2: 18.196, acc: 83.9, color: '#C82D14', highlight: false },
 ];
+
+const chartX = (co2: number) => 60 + ((co2 - 5) / 15) * 324;
+const chartY = (acc: number) => 170 - ((acc - 81) / 3) * 140;
+const POLICY_PATH = [...POLICY_POINTS]
+  .sort((a, b) => a.co2 - b.co2)
+  .map((p, i) => `${i === 0 ? 'M' : 'L'} ${chartX(p.co2).toFixed(1)} ${chartY(p.acc).toFixed(1)}`)
+  .join(' ');
+
+// Hero diagram: link end points (lx, ly) are node box centres; timings match the original packets
+const NODES_VIEW = [
+  { id: 'PC1', x: 8, y: 22, lx: 74, ly: 50, dur: 2.8, delay: 0, watts: '20.53 W', speed: '1.0×', allTag: 'Slowest', allSub: '20.53 W · all wait' },
+  { id: 'PC2', x: 264, y: 22, lx: 326, ly: 50, dur: 2.2, delay: 0, watts: '86 W', speed: '1.1×', allTag: 'Training', allSub: '86 W · 1.1× faster' },
+  { id: 'PC3', x: 8, y: 170, lx: 74, ly: 196, dur: 2.4, delay: 0.3, watts: '209.4 W', speed: '1.54×', allTag: 'Training', allSub: '209.4 W · most CO₂' },
+  { id: 'PC4', x: 264, y: 170, lx: 326, ly: 196, dur: 2.2, delay: 0.45, watts: '36 W', speed: '1.35×', allTag: 'Training', allSub: '36 W · 1.35× faster' },
+];
+// Most frequent RL pick: PC1 + PC4 in 29 of 100 simulated rounds
+const RL_PICKED = ['PC1', 'PC4'];
 
 const HARDWARE_BARS = [
   { name: 'PC1', sub: 'i7-12700', watts: 20.53, co2: null, acc: '0.065 kWh over 190 min' },
@@ -124,7 +141,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
               In federated learning, several computers each train a shared model on their own data and
               send only the updates to a coordinator. Normally the coordinator waits for every computer,
               every round. Here, a reinforcement-learning agent learns which computers to pick each round,
-              keeping accuracy while cutting time and electricity.
+              cutting electricity and time at a small cost in accuracy.
             </p>
             <p className="lp-lead">
               Results below come from a simulation of 4 PCs, with power figures taken from electricity-meter
@@ -171,68 +188,34 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 ))}
               </div>
               <span className={`lp-status-pill ${isRl ? 'is-good' : 'is-warn'}`}>
-                {isRl ? '−27% CO₂ · picks PC2 + PC4' : '18.2 g CO₂ · all 4 PCs'}
+                {isRl ? '−44% CO₂ · −1.3 pts accuracy' : '18.2 g CO₂ · all 4 PCs'}
               </span>
             </div>
 
             <svg viewBox="0 0 400 246" className="lp-topo-svg" role="img" aria-label="Coordinator client selection topology">
-              {/* Links */}
-              <line
-                x1="200" y1="123" x2="74" y2="50"
-                stroke={isRl ? '#D5CFC2' : '#C82D14'}
-                strokeWidth={isRl ? 1.5 : 2}
-                strokeDasharray={isRl ? '4 4' : undefined}
-              />
-              <line
-                x1="200" y1="123" x2="74" y2="196"
-                stroke={isRl ? '#D5CFC2' : '#C82D14'}
-                strokeWidth={isRl ? 1.5 : 2}
-                strokeDasharray={isRl ? '4 4' : undefined}
-              />
-              <line x1="200" y1="123" x2="326" y2="50" stroke="#0F766E" strokeWidth="2.2" />
-              <line x1="200" y1="123" x2="326" y2="196" stroke="#0F766E" strokeWidth="2.2" />
-
-              {/* Animated packets on active links */}
-              <motion.circle
-                cx={200}
-                cy={123}
-                r="4"
-                fill="#0F766E"
-                animate={{ cx: [200, 326, 200], cy: [123, 50, 123] }}
-                transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <motion.circle
-                cx={326}
-                cy={196}
-                r="4"
-                fill="#121316"
-                animate={{ cx: [326, 200, 326], cy: [196, 123, 196] }}
-                transition={{ duration: 2.2, delay: 0.45, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <motion.circle
-                cx={200}
-                cy={123}
-                r="4"
-                fill="#C82D14"
-                animate={{
-                  cx: [200, 74, 200],
-                  cy: [123, 50, 123],
-                  opacity: isRl ? 0 : 1,
-                }}
-                transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <motion.circle
-                cx={74}
-                cy={196}
-                r="4"
-                fill="#C82D14"
-                animate={{
-                  cx: [74, 200, 74],
-                  cy: [196, 123, 196],
-                  opacity: isRl ? 0 : 1,
-                }}
-                transition={{ duration: 2.4, delay: 0.3, repeat: Infinity, ease: 'easeInOut' }}
-              />
+              {/* Links and animated packets, one per PC */}
+              {NODES_VIEW.map((n) => {
+                const picked = RL_PICKED.includes(n.id);
+                const off = isRl && !picked;
+                return (
+                  <g key={n.id}>
+                    <line
+                      x1="200" y1="123" x2={n.lx} y2={n.ly}
+                      stroke={!isRl ? '#C82D14' : picked ? '#0F766E' : '#D5CFC2'}
+                      strokeWidth={!isRl ? 2 : picked ? 2.2 : 1.5}
+                      strokeDasharray={off ? '4 4' : undefined}
+                    />
+                    <motion.circle
+                      cx={200}
+                      cy={123}
+                      r="4"
+                      fill={!isRl ? '#C82D14' : n.id === 'PC4' ? '#121316' : '#0F766E'}
+                      animate={{ cx: [200, n.lx, 200], cy: [123, n.ly, 123], opacity: off ? 0 : 1 }}
+                      transition={{ duration: n.dur, delay: n.delay, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  </g>
+                );
+              })}
 
               {/* Coordinator */}
               <motion.circle
@@ -254,52 +237,39 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 30 W
               </text>
 
-              {/* PC1 */}
-              <g>
-                <rect
-                  x="8" y="22" width="128" height="52" rx="4"
-                  fill={isRl ? '#F5F2EB' : '#FDECEC'}
-                  stroke={isRl ? '#D5CFC2' : '#C82D14'}
-                  strokeWidth={isRl ? 1 : 1.5}
-                />
-                <text x="18" y="42" fill={isRl ? '#3A3832' : '#121316'} fontSize="11" fontWeight="600">
-                  {isRl ? 'PC1 · Left out' : 'PC1 · Slowest'}
-                </text>
-                <text x="18" y="59" fill={isRl ? '#57534A' : '#C82D14'} fontSize="9.5" fontFamily="monospace">
-                  20.53 W · all wait
-                </text>
-              </g>
-
-              {/* PC3 */}
-              <g>
-                <rect
-                  x="8" y="170" width="128" height="52" rx="4"
-                  fill={isRl ? '#F5F2EB' : '#FDECEC'}
-                  stroke={isRl ? '#D5CFC2' : '#C82D14'}
-                  strokeWidth={isRl ? 1 : 1.5}
-                />
-                <text x="18" y="190" fill={isRl ? '#3A3832' : '#121316'} fontSize="11" fontWeight="600">
-                  {isRl ? 'PC3 · Left out' : 'PC3 · Training'}
-                </text>
-                <text x="18" y="207" fill="#C82D14" fontSize="9.5" fontFamily="monospace">
-                  209.4 W · most CO₂
-                </text>
-              </g>
-
-              {/* PC2 */}
-              <g>
-                <rect x="264" y="22" width="128" height="52" rx="4" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
-                <text x="274" y="42" fill="#121316" fontSize="11" fontWeight="600">PC2 · Picked</text>
-                <text x="274" y="59" fill="#0F766E" fontSize="9.5" fontFamily="monospace">86 W · 1.1× faster</text>
-              </g>
-
-              {/* PC4 */}
-              <g>
-                <rect x="264" y="170" width="128" height="52" rx="4" fill="#CCFBF1" stroke="#0F766E" strokeWidth="1.5" />
-                <text x="274" y="190" fill="#121316" fontSize="11" fontWeight="600">PC4 · Picked</text>
-                <text x="274" y="207" fill="#0F766E" fontSize="9.5" fontFamily="monospace">36 W · 1.35× faster</text>
-              </g>
+              {/* PC boxes */}
+              {NODES_VIEW.map((n) => {
+                const picked = RL_PICKED.includes(n.id);
+                const dim = isRl && !picked;
+                const title = !isRl ? `${n.id} · ${n.allTag}` : `${n.id} · ${picked ? 'Picked' : 'Left out'}`;
+                const sub = !isRl ? n.allSub : picked ? `${n.watts} · ${n.speed}` : `${n.watts} · idle`;
+                return (
+                  <g key={n.id}>
+                    <rect
+                      x={n.x} y={n.y} width="128" height="52" rx="4"
+                      fill={!isRl ? '#FDECEC' : picked ? '#CCFBF1' : '#F5F2EB'}
+                      stroke={!isRl ? '#C82D14' : picked ? '#0F766E' : '#D5CFC2'}
+                      strokeWidth={dim ? 1 : 1.5}
+                    />
+                    <text x={n.x + 10} y={n.y + 20} fill={dim ? '#3A3832' : '#121316'} fontSize="11" fontWeight="600">
+                      {title}
+                    </text>
+                    <text
+                      x={n.x + 10} y={n.y + 37}
+                      fill={!isRl ? '#C82D14' : picked ? '#0F766E' : '#57534A'}
+                      fontSize="9.5" fontFamily="monospace"
+                    >
+                      {sub}
+                    </text>
+                  </g>
+                );
+              })}
             </svg>
+            <p className="lp-card-body">
+              {isRl
+                ? 'Most common RL choice (29% of simulated rounds). The picker changes its pair as training progresses.'
+                : 'Every PC trains every round; the slowest PC sets the round time.'}
+            </p>
           </SpotlightCard>
         </section>
 
@@ -371,8 +341,8 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
             <SpotlightCard className="lp-card">
               <h3 className="lp-card-title">Simple shortcuts lose accuracy</h3>
               <p className="lp-card-body">
-                Each PC holds different data. Always using the 2 fastest (82.2%) or the 2 lowest-power PCs (81.6%)
-                sees less variety, so accuracy drops. The RL picker kept 83.4%.
+                Each PC holds different data. Always using the 2 fastest (82.3%) or the 2 lowest-power PCs (82.2%)
+                sees less variety, so accuracy drops. The RL picker reached 82.6%; using all 4 PCs gave 83.9%.
               </p>
             </SpotlightCard>
           </div>
@@ -383,26 +353,26 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
           <div className="lp-section-head">
             <span className="lp-eyebrow">Results so far</span>
             <h2 id="lp-achieved-title" className="lp-h2">
-              In simulation: the same accuracy as using every PC, with 27% less CO₂ and 13% less time.
+              In simulation: 44% less CO₂ and 8% less time than using every PC, at a small accuracy cost (about 1.3 points).
             </h2>
           </div>
 
           <div className="lp-stats-row">
             <SpotlightCard className="lp-stat">
-              <span className="lp-stat-val">83.4%</span>
-              <span className="lp-stat-label">Accuracy with RL picking PCs (83.3% using all 4, effectively equal)</span>
+              <span className="lp-stat-val">82.6%</span>
+              <span className="lp-stat-label">Accuracy with RL picking PCs (83.9% using all 4; about 1.3 points lower)</span>
             </SpotlightCard>
             <SpotlightCard className="lp-stat">
-              <span className="lp-stat-val lp-stat-good">−27.4%</span>
-              <span className="lp-stat-label">CO₂ per training run vs. all 4 PCs (13.2 g vs. 18.2 g)</span>
+              <span className="lp-stat-val lp-stat-good">−43.7%</span>
+              <span className="lp-stat-label">CO₂ per training run vs. all 4 PCs (10.2 g vs. 18.2 g)</span>
             </SpotlightCard>
             <SpotlightCard className="lp-stat">
-              <span className="lp-stat-val">−13.1%</span>
-              <span className="lp-stat-label">Total training time vs. all 4 PCs (294 s vs. 339 s)</span>
+              <span className="lp-stat-val">−8.4%</span>
+              <span className="lp-stat-label">Total training time vs. all 4 PCs (310 s vs. 339 s)</span>
             </SpotlightCard>
             <SpotlightCard className="lp-stat">
               <span className="lp-stat-val">3 of 4</span>
-              <span className="lp-stat-label">PCs with real electricity-meter readings (PC4 is estimated)</span>
+              <span className="lp-stat-label">PCs with user-reported electricity-meter readings (PC4 is estimated)</span>
             </SpotlightCard>
           </div>
 
@@ -410,7 +380,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
             <SpotlightCard className="lp-visual-card">
               <div className="lp-visual-head">
                 <span className="lp-visual-label">Simulated: CO₂ vs. accuracy for 4 ways of picking PCs</span>
-                <span className="lp-status-pill is-good">RL ≈ all-4 accuracy, 27% less CO₂</span>
+                <span className="lp-status-pill is-good">RL: −44% CO₂, about 1.3 points less accurate than all 4</span>
               </div>
               <svg viewBox="0 0 420 215" className="lp-chart-svg" role="img" aria-label="Policy CO2 vs Accuracy chart">
                 {[40, 80, 120, 160].map((y) => (
@@ -430,7 +400,7 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 <text x="384" y="188" textAnchor="middle" fill="#57534A" fontSize="10" fontFamily="monospace">20g CO₂</text>
 
                 <motion.path
-                  d="M 89 144 Q 160 112 238 58 L 345 63"
+                  d={POLICY_PATH}
                   fill="none"
                   stroke="#D5CFC2"
                   strokeWidth="1.5"
@@ -442,16 +412,16 @@ export function LandingPage({ onEnter }: { onEnter: (target: ViewId) => void }) 
                 />
 
                 {POLICY_POINTS.map((p, i) => {
-                  const cx = 60 + ((p.co2 - 5) / 15) * 324;
-                  const cy = 170 - ((p.acc - 81) / 3) * 140;
+                  const cx = chartX(p.co2);
+                  const cy = chartY(p.acc);
                   const labelPos =
                     p.name === 'LowestEnergy2'
-                      ? { x: cx + 10, y: cy + 4, anchor: 'start' as const }
+                      ? { x: cx, y: cy + 20, anchor: 'start' as const }
                       : p.name === 'Fastest2'
-                        ? { x: cx, y: cy + 20, anchor: 'middle' as const }
+                        ? { x: cx + 10, y: cy + 4, anchor: 'start' as const }
                         : p.name === 'Q_learning_RL'
-                          ? { x: cx - 10, y: cy - 12, anchor: 'end' as const }
-                          : { x: cx + 8, y: cy + 20, anchor: 'end' as const };
+                          ? { x: cx - 14, y: cy - 16, anchor: 'end' as const }
+                          : { x: cx - 10, y: cy - 8, anchor: 'end' as const };
                   return (
                     <g key={p.name}>
                       {p.highlight && (

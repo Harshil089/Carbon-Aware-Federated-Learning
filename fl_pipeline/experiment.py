@@ -10,8 +10,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from .clients import FederatedClient, default_clients_from_config
-from .data import Partition, make_federated_dataset
-from .rl_env import FederatedRLEnv, compute_gini
+from .data import Partition, make_federated_splits
+from .rl_env import MODEL_CHOICES, FederatedRLEnv, compute_gini
 from .schedulers import (
     BaseScheduler,
     FairnessGiniScheduler,
@@ -210,28 +210,66 @@ def run_pipeline_experiment(
     use_calibrated_telemetry: bool = True,
     telemetry_path: Optional[Path] = None,
     seed: int = 42,
+    train_data_seeds: int = 3,
+    n_val: int = 500,
+    model: str = "numpy",
 ) -> Dict[str, Any]:
-    """Run the full 8-layer federated pipeline and return structured evaluation metrics."""
-    partitions, test_data = make_federated_dataset(
-        n_clients=4,
-        mode=mode,
-        alpha=alpha,
-        seed=seed,
-    )
-    if use_calibrated_telemetry:
-        clients = build_clients_from_telemetry(csv_path=telemetry_path, partitions=partitions)
-    else:
-        clients = default_clients_from_config(partitions=partitions)
+    """Run the full 8-layer federated pipeline and return structured evaluation metrics.
 
-    env = FederatedRLEnv(
-        clients=clients,
-        test_data=test_data,
-        max_rounds=rounds,
-        seed=seed,
-    )
+    RL state/reward use a validation split; reported accuracy uses the held-out test split.
+    train_data_seeds: extra data seeds whose envs form the Q-learning training pool (the
+        evaluation env is not in the pool). 0 trains Q-learning on the evaluation env itself.
+    model: "numpy" (synthetic Gaussian clusters, softmax-linear) or "torch_mlp"/"torch_cnn"
+        (MNIST via load_mnist_partitions). In torch mode n_val is ignored: validation is the
+        first 25% of the MNIST test tensors and the remaining 75% is the reported test set.
+    """
+    if model not in MODEL_CHOICES:
+        raise ValueError(f"model must be one of {MODEL_CHOICES}, got {model!r}.")
+    is_torch = model != "numpy"
+
+    def make_clients(parts: Optional[List[Partition]]) -> List[FederatedClient]:
+        if use_calibrated_telemetry:
+            return build_clients_from_telemetry(csv_path=telemetry_path, partitions=parts)
+        return default_clients_from_config(partitions=parts)
+
+    def make_splits(split_seed: int) -> Tuple[List[Partition], Partition, Partition, str]:
+        if not is_torch:
+            parts, val, test = make_federated_splits(
+                n_clients=4, mode=mode, alpha=alpha, n_val=n_val, seed=split_seed
+            )
+            return parts, val, test, "SYNTHETIC_GAUSSIAN_CLUSTERS"
+        from .torch_fl import load_mnist_partitions  # lazy: keeps torch optional
+
+        bundle = load_mnist_partitions(n_clients=4, mode=mode, alpha=alpha, seed=split_seed)
+        x_all, y_all = bundle.test_data
+        n_val_t = int(0.25 * len(y_all))
+        val = (x_all[:n_val_t], y_all[:n_val_t])
+        test = (x_all[n_val_t:], y_all[n_val_t:])
+        return bundle.partitions, val, test, bundle.provenance
+
+    def make_env(split_seed: int) -> Tuple[FederatedRLEnv, List[Partition], str]:
+        parts, val, test, provenance = make_splits(split_seed)
+        env = FederatedRLEnv(
+            # Torch mode: clients carry hardware/telemetry only; data lives in torch_partitions.
+            clients=make_clients(None if is_torch else parts),
+            test_data=test,
+            val_data=val,
+            max_rounds=rounds,
+            seed=seed,
+            model=model,
+            torch_partitions=parts if is_torch else None,
+        )
+        return env, parts, provenance
+
+    env, parts, provenance = make_env(seed)
+    clients = env.clients
+    train_envs = [make_env(seed + 1000 * (k + 1))[0] for k in range(train_data_seeds)]
 
     q_scheduler = TabularQLearningScheduler(env.actions, seed=seed + 100)
-    q_scheduler.train(env, episodes=q_episodes)
+    if train_envs:
+        q_scheduler.train(env, episodes=q_episodes, envs=train_envs)
+    else:
+        q_scheduler.train(env, episodes=q_episodes)
 
     schedulers: List[BaseScheduler] = [
         RandomScheduler(k=2, seed=seed),
@@ -264,6 +302,17 @@ def run_pipeline_experiment(
             "morl_episodes": morl_episodes,
             "use_calibrated_telemetry": use_calibrated_telemetry,
             "seed": seed,
+            "train_data_seeds": train_data_seeds,
+            "n_val": n_val,
+            "model": model,
+            "data_provenance": provenance,
+            "data_split": {
+                "n_train": sum(len(p[1]) for p in parts) if is_torch else 1000,
+                "n_val": len(env.val_data[1]) if is_torch else n_val,
+                "n_test": len(env.test_data[1]) if is_torch else 1500,
+                "rl_selection_metric": "validation_accuracy",
+                "reported_metric": "test_accuracy",
+            },
         },
         "clients": [
             {
@@ -276,7 +325,7 @@ def run_pipeline_experiment(
                 "idle_power_w": round(c.idle_power_w, 4),
                 "bandwidth_mbps": round(c.bandwidth_mbps, 4),
                 "grid_kgco2_per_kwh": round(c.grid_kgco2_per_kwh, 4),
-                "num_samples": c.num_samples,
+                "num_samples": len(parts[c.client_id][1]) if is_torch else c.num_samples,
                 "provenance": c.provenance,
             }
             for c in clients
@@ -295,6 +344,8 @@ def main() -> None:
     parser.add_argument("--rounds", type=int, default=15)
     parser.add_argument("--episodes", type=int, default=40)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--train-seeds", type=int, default=3)
+    parser.add_argument("--model", default="numpy", choices=list(MODEL_CHOICES))
     args = parser.parse_args()
 
     out = run_pipeline_experiment(
@@ -303,8 +354,12 @@ def main() -> None:
         rounds=args.rounds,
         q_episodes=args.episodes,
         seed=args.seed,
+        train_data_seeds=args.train_seeds,
+        model=args.model,
     )
     print(f"8-Layer Federated Pipeline ({args.mode}, alpha={args.alpha}, rounds={args.rounds})")
+    if args.model != "numpy":
+        print(f"Model: {args.model} | data provenance: {out['config']['data_provenance']}")
     for p in out["policies"]:
         flag = "*" if p.pareto_optimal else " "
         print(

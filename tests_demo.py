@@ -13,6 +13,8 @@ import urllib.request
 import urllib.error
 import zipfile
 import io
+import os
+os.environ.setdefault('FCL_KEEP_RUNS','100000')  # safety net: live-run test must never prune real runs/
 import demo_server as d
 
 class SettingsTests(unittest.TestCase):

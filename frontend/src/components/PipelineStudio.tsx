@@ -4,6 +4,12 @@ import { Play } from 'lucide-react';
 import { PipelineConfig, PipelineResults } from '../types';
 import { MorlSweepChart } from './Charts';
 
+const PROVENANCE_LABEL: Record<string, string> = {
+  SYNTHETIC_GAUSSIAN_CLUSTERS: 'SYNTHETIC CLUSTERS · NUMPY MODEL',
+  TORCHVISION_MNIST: 'REAL MNIST · PYTORCH MODEL',
+  SYNTHETIC_28x28_FALLBACK: 'SYNTHETIC 28×28 IMAGES (MNIST NOT FOUND) · PYTORCH MODEL',
+};
+
 export function PipelineStudio({
   data,
   offline,
@@ -412,9 +418,21 @@ export function PipelineStudio({
               <div className="head-inline">
                 <h2>The 4 PCs in this simulator</h2>
                 <span className="plate-tag num">{c?.use_calibrated_telemetry ? 'GENERATED 10K-ROW PROFILE' : 'FIXED CONFIG VALUES'}</span>
+                {c?.data_provenance && (
+                  <span
+                    className="plate-tag num"
+                    title="Where the training data came from. The fallback is generated locally because MNIST is not downloaded."
+                  >
+                    DATA: {PROVENANCE_LABEL[c.data_provenance] ?? c.data_provenance}
+                  </span>
+                )}
               </div>
               <p className="panel-sub">
-                How much data each PC got, and the hardware values used in steps 3–8.
+                {`How much data each PC got, and the hardware values used in steps 3–8.${
+                  c?.data_split
+                    ? ` Scheduler decisions use a separate ${c.data_split.n_val}-sample validation set; accuracy shown is on ${c.data_split.n_test} held-out test samples.`
+                    : ''
+                }`}
               </p>
             </div>
           </div>

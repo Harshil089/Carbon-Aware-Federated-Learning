@@ -125,6 +125,17 @@ export interface PipelineConfig {
   morl_episodes: number;
   use_calibrated_telemetry: boolean;
   seed: number;
+  // Response-only; optional so older cached/offline results and the request payload still type-check.
+  model?: string;
+  data_provenance?: string;
+  train_data_seeds?: number;
+  data_split?: {
+    n_train: number;
+    n_val: number;
+    n_test: number;
+    rl_selection_metric: string;
+    reported_metric: string;
+  };
 }
 
 export interface PipelineClient {

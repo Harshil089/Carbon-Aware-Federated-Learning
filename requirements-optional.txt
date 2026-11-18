@@ -1,0 +1,13 @@
+# Optional dependencies for the real-hardware path (hardware/).
+# Install only on machines that run hardware/server.py or hardware/client.py.
+# The simulator and the test suite do not need these.
+
+# Flower federated learning framework (coordinator + client transport).
+flwr>=1.8
+
+# CodeCarbon per-process energy estimates (estimates, not a wall meter).
+codecarbon>=2.3
+
+# PyTorch model backend (--model torch_mlp / torch_cnn)
+torch>=2.1
+torchvision>=0.16

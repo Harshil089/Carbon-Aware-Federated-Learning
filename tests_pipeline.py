@@ -28,6 +28,7 @@ from fl_pipeline import (
     fedavg_aggregate,
     load_calibrated_telemetry_csv,
     make_federated_dataset,
+    make_federated_splits,
     morl_scalarization_sweep,
     partition_dirichlet,
     partition_iid,
@@ -230,6 +231,66 @@ class TestPipelineLayers(unittest.TestCase):
         q_sched.train(env, episodes=10)
         self.assertGreater(len(q_sched.q_table), 0)
 
+    def _small_env(self, max_rounds: int = 3, **kwargs: object) -> FederatedRLEnv:
+        parts, test_data = make_federated_dataset(n_clients=4, mode="dirichlet", alpha=0.5, seed=42)
+        clients = default_clients_from_config(partitions=parts)
+        for c in clients:
+            c.availability = 1.0
+        env = FederatedRLEnv(clients=clients, test_data=test_data, max_rounds=max_rounds, seed=42, **kwargs)
+        env.reset()
+        return env
+
+    def test_availability_skips_unavailable_clients_before_training(self) -> None:
+        env = self._small_env()
+        env.clients[1].availability = 0.0
+        _, _, _, info = env.step((0, 1))
+        self.assertEqual(info["selected_ids"], (0, 1))
+        self.assertEqual(info["skipped_ids"], (1,))
+        self.assertEqual(info["trained_ids"], (0,))
+        self.assertEqual(int(env.participation_counts[1]), 0)
+        self.assertEqual(int(env.participation_counts[0]), 1)
+        self.assertTrue(info["constraints"]["unavailable_selected"])
+
+    def test_all_unavailable_round_keeps_weights_and_costs_aggregation_only(self) -> None:
+        env = self._small_env()
+        env.clients[0].availability = 0.0
+        env.clients[1].availability = 0.0
+        before = env.weights.copy()
+        _, _, _, info = env.step((0, 1))
+        self.assertTrue(np.array_equal(env.weights, before))
+        self.assertEqual(info["trained_ids"], ())
+        self.assertEqual(info["local_results"], [])
+        self.assertAlmostEqual(info["round_latency_s"], env.aggregation_seconds)
+
+    def test_fairness_penalty_uses_gini_delta(self) -> None:
+        env = self._small_env()
+        env.step((0,))
+        prev = compute_gini(env.participation_counts)
+        _, _, _, info = env.step((1,))
+        now = compute_gini(env.participation_counts)
+        self.assertNotAlmostEqual(now, prev)  # ensure the delta is non-trivial
+        self.assertAlmostEqual(info["gini_delta"], now - prev)
+        self.assertAlmostEqual(info["reward_components"]["neg_gini"], -info["gini_delta"])
+        self.assertAlmostEqual(info["participation_gini"], now)
+
+    def test_morl_sweep_restores_scalarization_weights(self) -> None:
+        env = self._small_env()
+        before = (env.accuracy_weight, env.latency_weight, env.carbon_weight, env.fairness_weight)
+        morl_scalarization_sweep(env, episodes=1)
+        after = (env.accuracy_weight, env.latency_weight, env.carbon_weight, env.fairness_weight)
+        self.assertEqual(before, after)
+
+    def test_measure_train_time_flag_controls_scale_reporting(self) -> None:
+        env_off = self._small_env()
+        _, _, _, info_off = env_off.step((0, 1))
+        self.assertEqual(info_off["measured_train_scale"], {})
+
+        env_on = self._small_env(measure_train_time=True)
+        _, _, _, info_on = env_on.step((0, 1))
+        self.assertEqual(set(info_on["measured_train_scale"]), {0, 1})
+        for scale in info_on["measured_train_scale"].values():
+            self.assertTrue(0.5 <= scale <= 2.0)
+
     # --- Layer 7 & 8: Calibrated Telemetry CSV + End-to-End Experiment ---
     def test_layer7_8_calibrated_telemetry_and_end_to_end_runner(self) -> None:
         rows, summary = load_calibrated_telemetry_csv()
@@ -385,6 +446,133 @@ class TestPipelineLayers(unittest.TestCase):
                     places=8,
                     msg=f"Std mismatch for {policy_name}.{m}",
                 )
+
+
+class TestValidationSplit(unittest.TestCase):
+    """RL state/reward use validation; reported accuracy uses test only."""
+
+    def _env(self, data_seed: int = 42, **kwargs: object) -> FederatedRLEnv:
+        parts, val, test = make_federated_splits(seed=data_seed)
+        clients = default_clients_from_config(partitions=parts)
+        return FederatedRLEnv(
+            clients=clients, test_data=test, max_rounds=3, seed=42, **kwargs
+        )
+
+    def test_splits_have_expected_shapes_and_distinct_validation(self) -> None:
+        parts, val, test = make_federated_splits(seed=42)
+        self.assertEqual(len(parts), 4)
+        self.assertEqual(sum(len(y) for _, y in parts), 1000)
+        self.assertEqual(len(val[1]), 500)
+        self.assertEqual(len(test[1]), 1500)
+        self.assertFalse(np.array_equal(val[0][:500], test[0][:500]))
+
+    def test_env_with_val_data_reports_test_and_decides_on_validation(self) -> None:
+        parts, val, test = make_federated_splits(seed=42)
+        clients = default_clients_from_config(partitions=parts)
+        env = FederatedRLEnv(clients=clients, test_data=test, val_data=val, max_rounds=3, seed=42)
+        env.reset()
+        self.assertAlmostEqual(env.current_acc, evaluate_accuracy(env.weights, val))
+        self.assertAlmostEqual(env.test_acc, evaluate_accuracy(env.weights, test))
+
+        prev_val = env.current_acc
+        _, _, _, info = env.step(0)
+        self.assertAlmostEqual(info["accuracy"], evaluate_accuracy(env.weights, test))
+        self.assertAlmostEqual(info["val_accuracy"], evaluate_accuracy(env.weights, val))
+        self.assertAlmostEqual(info["accuracy_gain"], info["val_accuracy"] - prev_val)
+
+    def test_env_without_val_data_is_legacy_single_split(self) -> None:
+        env = self._env()
+        self.assertIs(env.val_data, env.test_data)
+        env.reset()
+        _, _, _, info = env.step(0)
+        self.assertEqual(info["val_accuracy"], info["accuracy"])
+        self.assertEqual(info["val_loss"], info["loss"])
+
+    def test_q_training_pools_envs_from_different_data_seeds(self) -> None:
+        env_a = self._env(data_seed=42)
+        env_b = self._env(data_seed=1042)
+        q = TabularQLearningScheduler(env_a.actions, seed=1)
+        q.train(env_a, episodes=4, envs=[env_a, env_b])
+        self.assertGreater(len(q.q_table), 0)
+
+        narrow = FederatedRLEnv(
+            clients=env_a.clients, test_data=env_a.test_data,
+            allowed_subset_sizes=(2,), max_rounds=3, seed=42,
+        )
+        with self.assertRaises(ValueError):
+            q.train(env_a, episodes=1, envs=[narrow])
+
+    def test_experiment_reports_validation_selection_and_test_reporting(self) -> None:
+        out = run_pipeline_experiment(
+            rounds=3, q_episodes=3, morl_episodes=1, train_data_seeds=2
+        )
+        self.assertEqual(out["config"]["data_split"]["rl_selection_metric"], "validation_accuracy")
+        self.assertEqual(out["config"]["data_split"]["reported_metric"], "test_accuracy")
+        self.assertEqual(out["config"]["train_data_seeds"], 2)
+
+
+try:
+    import torch  # noqa: F401
+    HAS_TORCH = True
+except ImportError:
+    HAS_TORCH = False
+
+
+class TestModelBackends(unittest.TestCase):
+    """--model numpy (default) vs torch_mlp / torch_cnn (MNIST, or the offline fallback)."""
+
+    def test_invalid_model_and_missing_torch_partitions_raise(self) -> None:
+        parts, val, test = make_federated_splits(seed=42)
+        clients = default_clients_from_config(partitions=parts)
+        with self.assertRaises(ValueError):
+            FederatedRLEnv(clients=clients, test_data=test, model="bogus")
+        with self.assertRaises(ValueError):
+            FederatedRLEnv(clients=clients, test_data=test, model="torch_mlp")
+
+    def test_numpy_env_reports_model_and_numpy_provenance_path(self) -> None:
+        parts, val, test = make_federated_splits(seed=42)
+        clients = default_clients_from_config(partitions=parts)
+        env = FederatedRLEnv(clients=clients, test_data=test, val_data=val, max_rounds=2, seed=42)
+        env.reset()
+        _, _, _, info = env.step((0, 1))
+        self.assertEqual(info["model"], "numpy")
+
+    @unittest.skipUnless(HAS_TORCH, "PyTorch not installed")
+    def test_torch_mlp_env_reset_and_one_step(self) -> None:
+        bundle = load_mnist_partitions(
+            n_clients=4, mode="iid", max_train_samples=200, max_test_samples=100
+        )
+        x_all, y_all = bundle.test_data
+        val, test = (x_all[:25], y_all[:25]), (x_all[25:], y_all[25:])
+        clients = default_clients_from_config(partitions=None)
+        env = FederatedRLEnv(
+            clients=clients, test_data=test, val_data=val, max_rounds=2, seed=42,
+            model="torch_mlp", torch_partitions=bundle.partitions,
+        )
+        env.reset()
+        _, _, _, info = env.step((0, 1, 2, 3))
+        self.assertEqual(info["model"], "torch_mlp")
+        self.assertGreaterEqual(info["accuracy"], 0.0)
+        self.assertLessEqual(info["accuracy"], 1.0)
+        self.assertIn("val_accuracy", info)
+        self.assertGreater(len(info["trained_ids"]), 0)
+
+    @unittest.skipUnless(HAS_TORCH, "PyTorch not installed")
+    def test_torch_experiment_reports_model_and_provenance(self) -> None:
+        out = run_pipeline_experiment(
+            model="torch_mlp", rounds=2, q_episodes=1, morl_episodes=1, train_data_seeds=1
+        )
+        self.assertEqual(out["config"]["model"], "torch_mlp")
+        self.assertIn(
+            out["config"]["data_provenance"], ("TORCHVISION_MNIST", "SYNTHETIC_28x28_FALLBACK")
+        )
+
+    def test_numpy_experiment_reports_gaussian_provenance(self) -> None:
+        out = run_pipeline_experiment(
+            model="numpy", rounds=2, q_episodes=1, morl_episodes=1, train_data_seeds=1
+        )
+        self.assertEqual(out["config"]["model"], "numpy")
+        self.assertEqual(out["config"]["data_provenance"], "SYNTHETIC_GAUSSIAN_CLUSTERS")
 
 
 if __name__ == "__main__":

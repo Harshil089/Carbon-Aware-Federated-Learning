@@ -11,6 +11,7 @@ from .data import (
     class_distribution,
     generate_classification_data,
     make_federated_dataset,
+    make_federated_splits,
     partition_dirichlet,
     partition_iid,
 )
@@ -68,6 +69,7 @@ __all__ = [
     "generate_classification_data",
     "load_calibrated_telemetry_csv",
     "make_federated_dataset",
+    "make_federated_splits",
     "mark_policy_pareto_frontier",
     "morl_scalarization_sweep",
     "partition_dirichlet",

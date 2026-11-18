@@ -10,6 +10,8 @@ from .data import Partition
 from .fedavg import run_fedavg_round
 from .network_energy import simulate_round_telemetry
 
+MODEL_CHOICES = ("numpy", "torch_mlp", "torch_cnn")
+
 
 def compute_gini(counts: Sequence[float]) -> float:
     """Compute the Gini coefficient of client participation counts in [0, 1)."""
@@ -24,7 +26,14 @@ def compute_gini(counts: Sequence[float]) -> float:
 
 
 class FederatedRLEnv:
-    """Multi-Objective Federated Learning Environment with constraint tracking."""
+    """Multi-Objective Federated Learning Environment with constraint tracking.
+
+    val_data: split used for RL state and reward; None falls back to test_data (legacy).
+        Reported "accuracy"/"loss" in step() info always come from test_data.
+    measure_train_time: when True, each trained client's measured local train wall-clock
+        time scales its simulated train time (ratio to the first measured time, clipped to
+        [0.5, 2.0]). Default False keeps runs deterministic under a seed.
+    """
 
     def __init__(
         self,
@@ -46,10 +55,19 @@ class FederatedRLEnv:
         latency_budget_s: Optional[float] = None,
         carbon_budget_g: Optional[float] = None,
         seed: int = 42,
+        measure_train_time: bool = False,
+        val_data: Optional[Partition] = None,
+        model: str = "numpy",
+        torch_partitions: Optional[Sequence[Any]] = None,
     ) -> None:
+        if model not in MODEL_CHOICES:
+            raise ValueError(f"model must be one of {MODEL_CHOICES}, got {model!r}.")
+        self.model = model
         self.clients = list(clients)
         self.n_clients = len(self.clients)
         self.test_data = test_data
+        # RL state/reward use validation; None falls back to test data (legacy behaviour).
+        self.val_data = val_data if val_data is not None else test_data
         self.max_rounds = int(max_rounds)
         self.local_epochs = int(local_epochs)
         self.lr = float(lr)
@@ -75,20 +93,42 @@ class FederatedRLEnv:
         if not self.actions:
             raise ValueError("Action space is empty; check allowed_subset_sizes.")
 
-        self.n_features = int(test_data[0].shape[1])
-        self.n_classes = int(np.max(test_data[1]) + 1)
         self.seed = int(seed)
         self.rng = np.random.default_rng(self.seed)
-
-        self.weights = np.zeros((self.n_features, self.n_classes), dtype=float)
+        self._torch: Optional[Any] = None
+        if model == "numpy":
+            self.n_features = int(test_data[0].shape[1])
+            self.n_classes = int(np.max(test_data[1]) + 1)
+            self.weights = np.zeros((self.n_features, self.n_classes), dtype=float)
+        else:
+            if torch_partitions is None:
+                raise ValueError(f"model={model!r} requires torch_partitions (tensor (x, y) pairs).")
+            try:
+                from .torch_backend import TorchBackend  # lazy: keeps torch optional
+            except ImportError as exc:
+                raise RuntimeError(
+                    f"PyTorch is required for model={model}; "
+                    "pip install -r requirements-optional.txt"
+                ) from exc
+            # Torch data are tensors, so numpy shape/max is not used: n_features is unused (0),
+            # n_classes is fixed at MNIST's 10. self.weights is an unused (1, 1) placeholder.
+            self.n_features = 0
+            self.n_classes = 10
+            self._torch = TorchBackend(model, torch_partitions, self.val_data, test_data, seed=self.seed)
+            self.weights = np.zeros((1, 1), dtype=float)
         self.round_idx = 0
-        self.current_acc = 0.0
-        self.current_loss = 0.0
+        self.current_acc = 0.0  # validation accuracy (RL state and reward)
+        self.current_loss = 0.0  # validation loss
+        self.test_acc = 0.0  # reported metric only; never used for decisions
+        self.test_loss = 0.0
         self.cum_latency_s = 0.0
         self.cum_wh = 0.0
         self.cum_co2_g = 0.0
         self.participation_counts = np.zeros(self.n_clients, dtype=int)
         self.constraint_violations = 0
+        self.prev_gini = 0.0
+        self.measure_train_time = bool(measure_train_time)
+        self._ref_train_s: Optional[float] = None
 
     def set_scalarization_weights(
         self,
@@ -145,20 +185,34 @@ class FederatedRLEnv:
         idx = self.actions.index(chosen) if chosen in self.actions else -1
         return idx, chosen
 
+    def _evaluate_global(self) -> None:
+        """Refresh validation (RL) and test (reported) metrics of the global model."""
+        if self._torch is None:
+            self.current_acc = evaluate_accuracy(self.weights, self.val_data)
+            self.current_loss = cross_entropy_loss(self.weights, self.val_data)
+            self.test_acc = evaluate_accuracy(self.weights, self.test_data)
+            self.test_loss = cross_entropy_loss(self.weights, self.test_data)
+        else:
+            self.current_acc, self.current_loss = self._torch.evaluate(self.val_data)
+            self.test_acc, self.test_loss = self._torch.evaluate(self.test_data)
+
     def reset(self, seed: Optional[int] = None) -> np.ndarray:
         """Reset environment state to round 0 and return initial observation vector."""
         if seed is not None:
             self.seed = int(seed)
         self.rng = np.random.default_rng(self.seed)
-        self.weights = np.zeros((self.n_features, self.n_classes), dtype=float)
+        if self._torch is None:
+            self.weights = np.zeros((self.n_features, self.n_classes), dtype=float)
+        else:
+            self._torch.reset()
         self.round_idx = 0
-        self.current_acc = evaluate_accuracy(self.weights, self.test_data)
-        self.current_loss = cross_entropy_loss(self.weights, self.test_data)
+        self._evaluate_global()
         self.cum_latency_s = 0.0
         self.cum_wh = 0.0
         self.cum_co2_g = 0.0
         self.participation_counts = np.zeros(self.n_clients, dtype=int)
         self.constraint_violations = 0
+        self.prev_gini = 0.0
         return self._get_obs()
 
     def step(
@@ -184,27 +238,60 @@ class FederatedRLEnv:
             else:
                 speed_multipliers = np.ones(self.n_clients, dtype=float)
 
-        self.weights, agg_weights, local_results = run_fedavg_round(
-            self.weights,
-            self.clients,
-            selected_ids,
-            epochs=self.local_epochs,
-            lr=self.lr,
-        )
-        self.current_acc = evaluate_accuracy(self.weights, self.test_data)
-        self.current_loss = cross_entropy_loss(self.weights, self.test_data)
+        # Availability is sampled once per client, before training, in selected order.
+        trained_ids = tuple(i for i in selected_ids if self.clients[i].is_available(self.rng))
+        skipped_ids = tuple(i for i in selected_ids if i not in trained_ids)
+
+        # Per-client train seconds, aligned with trained_ids (torch mode has no LocalTrainResult).
+        if self._torch is not None:
+            if trained_ids:
+                train_secs, agg_weights = self._torch.train_round(
+                    trained_ids, self.local_epochs, self.lr
+                )
+            else:
+                train_secs, agg_weights = [], np.array([])
+            local_results = []
+        elif trained_ids:
+            self.weights, agg_weights, local_results = run_fedavg_round(
+                self.weights,
+                self.clients,
+                trained_ids,
+                epochs=self.local_epochs,
+                lr=self.lr,
+            )
+            train_secs = [res.train_seconds for res in local_results]
+        else:
+            agg_weights = np.array([])
+            local_results = []
+            train_secs = []
+        self._evaluate_global()
+
+        telemetry_speeds = speed_multipliers
+        measured_scale: Dict[int, float] = {}
+        if self.measure_train_time and trained_ids:
+            # Copy so the caller's speed_multipliers array is not mutated.
+            telemetry_speeds = np.array(speed_multipliers, dtype=float)
+            for i, secs in zip(trained_ids, train_secs):
+                if secs <= 0:
+                    continue
+                if self._ref_train_s is None:
+                    self._ref_train_s = secs
+                scale = float(np.clip(secs / self._ref_train_s, 0.5, 2.0))
+                measured_scale[i] = scale
+                telemetry_speeds[i] *= scale
 
         telemetry = simulate_round_telemetry(
             self.clients,
-            selected_ids,
+            trained_ids,
             base_train_seconds=self.base_train_seconds,
             aggregation_seconds=self.aggregation_seconds,
             coordinator_power_w=self.coordinator_power_w,
-            speed_multipliers=speed_multipliers,
+            speed_multipliers=telemetry_speeds,
             power_scales=power_scales,
+            allow_empty=True,
         )
 
-        for i in selected_ids:
+        for i in trained_ids:
             self.participation_counts[i] += 1
 
         self.round_idx += 1
@@ -214,18 +301,20 @@ class FederatedRLEnv:
 
         acc_gain = self.current_acc - prev_acc
         gini = compute_gini(self.participation_counts)
+        gini_delta = gini - self.prev_gini
+        self.prev_gini = gini
         shortfall = max(0.0, self.accuracy_floor - self.current_acc)
 
-        # 4D Multi-Objective Vector Reward: [accuracy_gain, -latency_s, -co2_g, -fairness_gini]
+        # 4D Multi-Objective Vector Reward: [accuracy_gain, -latency_s, -co2_g, -fairness_gini_delta]
         vector_reward = np.array(
-            [acc_gain, -telemetry.round_latency_s, -telemetry.total_co2_g, -gini],
+            [acc_gain, -telemetry.round_latency_s, -telemetry.total_co2_g, -gini_delta],
             dtype=float,
         )
         scalar_reward = float(
             self.accuracy_weight * acc_gain
             - self.latency_weight * telemetry.round_latency_s
             - self.carbon_weight * telemetry.total_co2_g
-            - self.fairness_weight * gini
+            - self.fairness_weight * gini_delta
             - 0.6 * shortfall
         )
 
@@ -235,19 +324,26 @@ class FederatedRLEnv:
         co2_exceeded = (
             self.carbon_budget_g is not None and self.cum_co2_g > self.carbon_budget_g
         )
-        unavailable_selected = any(not self.clients[i].is_available(self.rng) for i in selected_ids)
+        unavailable_selected = len(skipped_ids) > 0
         if lat_exceeded or co2_exceeded or unavailable_selected:
             self.constraint_violations += 1
 
         done = self.round_idx >= self.max_rounds
         info: Dict[str, Any] = {
+            "model": self.model,
             "round": self.round_idx,
             "action_index": action_idx,
             "selected_ids": selected_ids,
+            "trained_ids": trained_ids,
+            "skipped_ids": skipped_ids,
+            "measured_train_scale": measured_scale,
             "selected_names": tuple(self.clients[i].name for i in selected_ids),
-            "accuracy": self.current_acc,
+            # "accuracy"/"loss" are TEST metrics (reported); "val_*" and accuracy_gain drive RL.
+            "accuracy": self.test_acc,
+            "loss": self.test_loss,
+            "val_accuracy": self.current_acc,
+            "val_loss": self.current_loss,
             "accuracy_gain": acc_gain,
-            "loss": self.current_loss,
             "round_latency_s": telemetry.round_latency_s,
             "round_wh": telemetry.total_wh,
             "round_co2_g": telemetry.total_co2_g,
@@ -257,12 +353,13 @@ class FederatedRLEnv:
             "aggregation_weights": agg_weights,
             "participation_counts": self.participation_counts.copy(),
             "participation_gini": gini,
+            "gini_delta": gini_delta,
             "vector_reward": vector_reward,
             "reward_components": {
                 "accuracy_gain": acc_gain,
                 "neg_latency_s": -telemetry.round_latency_s,
                 "neg_co2_g": -telemetry.total_co2_g,
-                "neg_gini": -gini,
+                "neg_gini": -gini_delta,
                 "shortfall_penalty": -0.6 * shortfall,
             },
             "constraints": {

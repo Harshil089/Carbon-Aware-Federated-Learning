@@ -264,22 +264,31 @@ class TabularQLearningScheduler(BaseScheduler):
         env: FederatedRLEnv,
         episodes: int = 80,
         progress_callback: Optional[Callable[[int, int], None]] = None,
+        envs: Optional[Sequence[FederatedRLEnv]] = None,
     ) -> Dict[Tuple[int, int], np.ndarray]:
-        """Train tabular Q-values on FederatedRLEnv for the specified number of episodes."""
+        """Train tabular Q-values on FederatedRLEnv for the specified number of episodes.
+
+        envs: optional pool of environments built on different data seeds; episode ep runs
+            on envs[ep % len(envs)] while sharing one Q table. None trains on `env` only.
+        """
+        pool = [env] if envs is None else list(envs)
+        if envs is not None and (not pool or any(len(e.actions) != len(self.actions) for e in pool)):
+            raise ValueError("envs must be non-empty and share the scheduler's action list.")
         rng = np.random.default_rng(self.seed)
         for ep in range(episodes):
-            env.reset(seed=self.seed + ep)
+            cur = pool[ep % len(pool)]
+            cur.reset(seed=self.seed + ep)
             eps = max(self.epsilon_min, self.epsilon_start * (1.0 - ep / max(1, episodes)))
-            for r in range(env.max_rounds):
-                s = env.discretize_state()
+            for r in range(cur.max_rounds):
+                s = cur.discretize_state()
                 if rng.random() < eps:
                     a_idx = int(rng.integers(len(self.actions)))
                 else:
                     q_vals = self.q_table[s]
                     best = np.flatnonzero(q_vals == q_vals.max())
                     a_idx = int(rng.choice(best))
-                _, reward, done, _ = env.step(self.actions[a_idx])
-                sp = env.discretize_state()
+                _, reward, done, _ = cur.step(self.actions[a_idx])
+                sp = cur.discretize_state()
                 target = reward + (0.0 if done else self.gamma * float(np.max(self.q_table[sp])))
                 self.q_table[s][a_idx] += self.alpha * (target - self.q_table[s][a_idx])
                 if done:
@@ -364,39 +373,43 @@ def morl_scalarization_sweep(
             ("Fairness_Carbon", 12.0, 0.015, 0.45, 0.40),
         ]
 
+    saved = (env.accuracy_weight, env.latency_weight, env.carbon_weight, env.fairness_weight)
     results: List[MORLSweepPoint] = []
-    for idx, (name, w_acc, w_lat, w_co2, w_fair) in enumerate(preference_grid):
-        env.set_scalarization_weights(w_acc, w_lat, w_co2, w_fair)
-        agent = TabularQLearningScheduler(env.actions, seed=env.seed + 100 * idx)
-        agent.train(env, episodes=episodes)
+    try:
+        for idx, (name, w_acc, w_lat, w_co2, w_fair) in enumerate(preference_grid):
+            env.set_scalarization_weights(w_acc, w_lat, w_co2, w_fair)
+            agent = TabularQLearningScheduler(env.actions, seed=env.seed + 100 * idx)
+            agent.train(env, episodes=episodes)
 
-        env.reset(seed=eval_seed)
-        info = {}
-        for r in range(env.max_rounds):
-            chosen = agent.select(
-                env.clients,
-                round_idx=r,
-                acc=env.current_acc,
-                max_rounds=env.max_rounds,
+            env.reset(seed=eval_seed)
+            info = {}
+            for r in range(env.max_rounds):
+                chosen = agent.select(
+                    env.clients,
+                    round_idx=r,
+                    acc=env.current_acc,
+                    max_rounds=env.max_rounds,
+                )
+                _, _, done, info = env.step(chosen)
+                if done:
+                    break
+
+            results.append(
+                MORLSweepPoint(
+                    preference_name=name,
+                    accuracy_weight=w_acc,
+                    latency_weight=w_lat,
+                    carbon_weight=w_co2,
+                    fairness_weight=w_fair,
+                    final_accuracy=float(info["accuracy"]),
+                    total_latency_s=float(info["cum_latency_s"]),
+                    total_wh=float(info["cum_wh"]),
+                    total_co2_g=float(info["cum_co2_g"]),
+                    participation_gini=float(info["participation_gini"]),
+                )
             )
-            _, _, done, info = env.step(chosen)
-            if done:
-                break
 
-        results.append(
-            MORLSweepPoint(
-                preference_name=name,
-                accuracy_weight=w_acc,
-                latency_weight=w_lat,
-                carbon_weight=w_co2,
-                fairness_weight=w_fair,
-                final_accuracy=float(info["accuracy"]),
-                total_latency_s=float(info["cum_latency_s"]),
-                total_wh=float(info["cum_wh"]),
-                total_co2_g=float(info["cum_co2_g"]),
-                participation_gini=float(info["participation_gini"]),
-            )
-        )
-
+    finally:
+        env.set_scalarization_weights(*saved)
     extract_pareto_frontier(results)
     return results

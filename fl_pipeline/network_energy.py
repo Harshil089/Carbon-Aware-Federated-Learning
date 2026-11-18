@@ -53,6 +53,7 @@ def simulate_round_telemetry(
     speed_multipliers: Optional[Sequence[float]] = None,
     power_scales: Optional[Sequence[float]] = None,
     grid_overrides: Optional[Sequence[float]] = None,
+    allow_empty: bool = False,
 ) -> RoundTelemetry:
     """Compute parallel round latency, active/idle/coordinator energy, and per-client CO2.
 
@@ -67,10 +68,13 @@ def simulate_round_telemetry(
         Each client i runs active compute for T_train_i (0 if unselected) and idles for
         (round_latency - T_train_i). Coordinator draws coordinator_power_w for round_latency.
         Per-client CO2 (g) = E_i (kWh) * CI_i (kg CO2/kWh) * 1000 = Wh_i * CI_i.
+
+    With allow_empty=True and no selection, round latency is aggregation_seconds only
+    and every client idles for the whole round.
     """
     n_clients = len(clients)
     selected_tuple = tuple(int(i) for i in selected_ids)
-    if len(selected_tuple) == 0:
+    if len(selected_tuple) == 0 and not allow_empty:
         raise ValueError("selected_ids must contain at least one client.")
     selected_set = set(selected_tuple)
     for i in selected_tuple:
@@ -109,7 +113,7 @@ def simulate_round_telemetry(
             t_ul[i] = 0.0
             t_tot[i] = 0.0
 
-    round_latency_s = max(t_tot[i] for i in selected_tuple) + float(aggregation_seconds)
+    round_latency_s = max((t_tot[i] for i in selected_tuple), default=0.0) + float(aggregation_seconds)
 
     coord_wh = (float(coordinator_power_w) * round_latency_s) / 3600.0
     coord_co2_g = coord_wh * float(coordinator_grid_kgco2_per_kwh)

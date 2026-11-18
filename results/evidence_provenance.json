@@ -12,6 +12,12 @@
   },
   "reference_mean_power_w": 20.526315789473685,
   "source": "Central Electricity Authority, CO2 Baseline Database v22.0 (August 2026), weighted-average Indian grid including renewables, FY 2025-26, https://cea.nic.in/api/cdm-report-version/view-pdf/en/82, page 1",
-  "scenario_note": "PC2-4 speed and power are unvalidated scenario assumptions; NumPy training uses the CPU.",
+  "scenario_note": "Nodes with user-reported measurements: PC1, PC2, PC3. Unmeasured scenario nodes: PC4. All round latency/energy is simulated; NumPy training uses the CPU.",
+  "node_status": {
+    "PC1": "MEASURED BY USER (NEEDS RE-VERIFICATION)",
+    "PC2": "MEASURED BY USER (CIFAR-10 CPU, 3000 ROUNDS)",
+    "PC3": "MEASURED BY USER (CIFAR-10 CPU, 3000 ROUNDS)",
+    "PC4": "UNMEASURED SCENARIO"
+  },
   "interpretation": "Synthetic client data. Infrastructure latency, energy and carbon are modeled."
 }

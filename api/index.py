@@ -1,7 +1,5 @@
 """Vercel Serverless entrypoint for Federated Computing Lab."""
 from __future__ import annotations
-import csv
-from dataclasses import asdict
 import io
 import json
 import os
@@ -14,22 +12,12 @@ import zipfile
 
 BASE = Path(__file__).resolve().parent.parent
 TMP_RUNS = Path('/tmp/fcl_runs')
-FILES = {
-    'dashboard.html',
-    'run_parameters.json',
-    'evidence_provenance.json',
-    'comparison_SIMULATION.csv',
-    'per_round_SIMULATION.csv',
-    'sensitivity_ASSUMPTIONS.csv',
-    'actual_meter_reading_PC1.csv',
-    'node_benchmark_MEASURED_PLUS_SCENARIOS.csv',
-    'accuracy_by_round.png',
-    'cumulative_latency.png',
-    'cumulative_carbon.png',
-    'tradeoff.png',
-    'node_energy_scenarios.png',
-    'run.log',
-}
+# Quick-preset bounds: the hosted demo has a time limit, so full-size runs stay local.
+HOSTED_LIMITS = {'rounds': 12, 'episodes': 35, 'repeats': 3, 'sensitivity': 12}
+HOSTED_LIMIT_MESSAGE = (
+    'Hosted runs are limited to rounds ≤ 12, episodes ≤ 35, repeats ≤ 3 and what-if samples ≤ 12 '
+    'so they finish within the time limit. Run the project locally for full-size runs.'
+)
 
 LOCK = threading.Lock()
 STATE = {
@@ -62,54 +50,16 @@ def result_dir(result_id: str) -> Path:
 
 
 def read_results(result_id: str):
+    from server_common import read_results_from
+
     folder = result_dir(result_id)
     actual_id = 'baseline' if folder == (BASE / 'results') else result_id
-
-    def rows(name: str):
-        with (folder / name).open(encoding='utf-8-sig', newline='') as f:
-            return list(csv.DictReader(f))
-
-    return {
-        'summary': rows('comparison_SIMULATION.csv'),
-        'rows': rows('per_round_SIMULATION.csv'),
-        'sensitivity': rows('sensitivity_ASSUMPTIONS.csv'),
-        'profiles': rows('node_benchmark_MEASURED_PLUS_SCENARIOS.csv'),
-        'parameters': json.loads((folder / 'run_parameters.json').read_text(encoding='utf-8')),
-        'artifact_prefix': f'/artifacts/{actual_id}/',
-        'result_id': actual_id,
-        'offline': False,
-    }
-
-
-def run_and_cache_pipeline(raw=None):
-    from fl_pipeline.experiment import run_pipeline_experiment
-
-    cfg = raw or {}
-    mode = cfg.get('mode', 'dirichlet')
-    if mode not in ('iid', 'dirichlet'):
-        raise ValueError('mode must be iid or dirichlet.')
-    alpha = float(cfg.get('alpha', 0.5))
-    rounds = int(cfg.get('rounds', 15))
-    q_ep = int(cfg.get('q_episodes', 35))
-    m_ep = int(cfg.get('morl_episodes', 20))
-    use_cal = bool(cfg.get('use_calibrated_telemetry', True))
-    seed = int(cfg.get('seed', 42))
-    if not (0.01 <= alpha <= 100 and 1 <= rounds <= 50 and 1 <= q_ep <= 200 and 1 <= m_ep <= 100):
-        raise ValueError('Pipeline parameter out of range.')
-    res = run_pipeline_experiment(
-        mode=mode,
-        alpha=alpha,
-        rounds=rounds,
-        q_episodes=q_ep,
-        morl_episodes=m_ep,
-        use_calibrated_telemetry=use_cal,
-        seed=seed,
-    )
-    res['policies'] = [asdict(p) for p in res['policies']]
-    return res
+    return read_results_from(folder, actual_id)
 
 
 def get_pipeline_cached():
+    from server_common import run_and_cache_pipeline
+
     global PIPELINE_CACHE
     with PIPELINE_LOCK:
         if PIPELINE_CACHE is None:
@@ -120,9 +70,11 @@ def get_pipeline_cached():
 def execute_serverless_run(raw: dict) -> str:
     import sys
     import uuid
-    import demo_server as ds
+    import server_common as ds
 
     values = ds.validate_settings(raw)
+    if any(values[name] > limit for name, limit in HOSTED_LIMITS.items()):
+        raise ValueError(HOSTED_LIMIT_MESSAGE)
     run_id = uuid.uuid4().hex[:12]
     out = TMP_RUNS / run_id
     out.mkdir(parents=True, exist_ok=True)
@@ -171,6 +123,10 @@ def execute_serverless_run(raw: dict) -> str:
                 result_id=run_id,
                 log=lines[-500:],
             )
+            try:
+                ds.prune_runs(TMP_RUNS,keep=20)
+            except Exception:
+                pass
         else:
             STATE.update(
                 status='failed',
@@ -291,6 +247,8 @@ class handler(BaseHTTPRequestHandler):
                 p = get_pipeline_cached()
                 return self.send(200, {'morl_sweep': p['morl_sweep'], 'pareto_morl': p['pareto_morl']})
             if req_path == '/api/export':
+                from server_common import FILES
+
                 rid = q.get('run', ['baseline'])[0]
                 folder = result_dir(rid)
                 if not (folder / 'run_parameters.json').exists():
@@ -308,6 +266,8 @@ class handler(BaseHTTPRequestHandler):
                 )
             parts = req_path.strip('/').split('/')
             if len(parts) == 3 and parts[0] == 'artifacts':
+                from server_common import FILES
+
                 folder = result_dir(parts[1])
                 name = parts[2]
                 if name not in FILES:
@@ -346,6 +306,10 @@ class handler(BaseHTTPRequestHandler):
                     STATE.update(status='cancelled', message='Run stopped. Previous results retained.')
                 return self.send(200, {'ok': True})
             if req_path in ('/api/pipeline', '/api/pipeline/run'):
+                from server_common import run_and_cache_pipeline
+
+                if isinstance(raw, dict) and raw.get('model', 'numpy') != 'numpy':
+                    raise ValueError('Torch models are not available on the hosted demo.')
                 global PIPELINE_CACHE
                 with PIPELINE_LOCK:
                     PIPELINE_CACHE = run_and_cache_pipeline(raw)

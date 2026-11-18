@@ -151,6 +151,35 @@ def make_federated_dataset(
     return parts, (x_test, y_test)
 
 
+def make_federated_splits(
+    n_clients: int = 4,
+    mode: str = "dirichlet",
+    alpha: float = 0.5,
+    n_train: int = 1000,
+    n_val: int = 500,
+    n_test: int = 1500,
+    n_classes: int = 3,
+    min_samples_per_client: int = 10,
+    seed: int = 42,
+) -> Tuple[List[Partition], Partition, Partition]:
+    """Return (train partitions, validation set, test set) with disjoint data seeds.
+
+    Validation is used for RL state/reward; test is reserved for reported accuracy.
+    """
+    parts, test = make_federated_dataset(
+        n_clients=n_clients,
+        mode=mode,
+        alpha=alpha,
+        n_train=n_train,
+        n_test=n_test,
+        n_classes=n_classes,
+        min_samples_per_client=min_samples_per_client,
+        seed=seed,
+    )
+    val = generate_classification_data(n_samples=n_val, n_classes=n_classes, seed=seed + 20_000)
+    return parts, val, test
+
+
 def class_distribution(partitions: List[Partition], n_classes: int = 3) -> np.ndarray:
     """Return a (n_clients, n_classes) matrix of class counts per client."""
     dist = np.zeros((len(partitions), n_classes), dtype=int)

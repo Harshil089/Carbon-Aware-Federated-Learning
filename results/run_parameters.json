@@ -9,7 +9,8 @@
     "learning_rate": 0.23,
     "seed": 42,
     "latency_weight": 0.018,
-    "carbon_weight": 0.32
+    "carbon_weight": 0.32,
+    "train_seeds": 3
   },
   "training": {
     "clients": 4,
@@ -20,6 +21,7 @@
     "aggregation": "Sample-weighted FedAvg",
     "samples_per_client": 250,
     "training_samples": 1000,
+    "validation_samples": 500,
     "test_samples": 1500,
     "local_epochs": 2,
     "learning_rate": 0.23,
@@ -60,7 +62,7 @@
         0.33
       ]
     ],
-    "data": "Synthetic non-IID classification",
+    "data": "Synthetic non-IID classification, regenerated for every repeat seed",
     "execution": "CPU / NumPy"
   },
   "rl": {
@@ -88,12 +90,19 @@
     "carbon_weight": 0.32,
     "accuracy_shortfall_weight": 0.6,
     "reward_accuracy_floor": 0.78,
+    "fairness_weight": 0.0,
+    "state_accuracy_source": "validation split (not test)",
     "reward": "15 * accuracy_gain - latency_weight * seconds - carbon_weight * CO2_grams - 0.6 * max(0, 0.78 - accuracy)",
     "target_note": "Comparison target controls target-hit reporting; the reward accuracy floor remains 0.78."
   },
   "seeds": {
     "data": 42,
     "q_learning": 2026,
+    "rl_training_data": [
+      2042,
+      2043,
+      2044
+    ],
     "performance_trials": [
       1200,
       1201,
@@ -101,6 +110,7 @@
       1203,
       1204
     ],
+    "performance_trial_data": "each repeat regenerates data with the trial seed",
     "sensitivity_profiles": 891,
     "sensitivity_performance_trials": [
       10000,
@@ -267,11 +277,33 @@
     "carbon_formula": "Wh * grid_kg_CO2_per_kWh = grams CO2"
   },
   "runtime": {
-    "engine": "Python / NumPy",
+    "engine": "Python / NumPy (fl_pipeline shared engine)",
     "python": "3.12.3",
     "numpy": "2.5.5",
     "matplotlib": "3.11.2"
   },
-  "execution_wall_seconds": 2.175,
+  "paired_rl_vs_fedavg_all4": {
+    "comparison": "Q_learning_RL minus FedAvg_all4",
+    "n_pairs": 5,
+    "final_accuracy": {
+      "mean_difference": -0.013468,
+      "sd": 0.006588,
+      "ci95_low": -0.021647,
+      "ci95_high": -0.005289
+    },
+    "total_seconds_MODELED": {
+      "mean_difference": -28.470062,
+      "sd": 3.324729,
+      "ci95_low": -32.597596,
+      "ci95_high": -24.342528
+    },
+    "total_CO2_g_MODELED": {
+      "mean_difference": -7.954482,
+      "sd": 0.208825,
+      "ci95_low": -8.213731,
+      "ci95_high": -7.695233
+    }
+  },
+  "execution_wall_seconds": 4.361,
   "interpretation": "Synthetic client data. Infrastructure latency, energy and carbon are modeled."
 }
