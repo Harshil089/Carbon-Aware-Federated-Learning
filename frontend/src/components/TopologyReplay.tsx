@@ -159,13 +159,13 @@ export function TopologyReplay({ results }: { results: SimulationResults | null 
                       {on ? 'PICKED' : 'IDLE'}
                     </text>
                     <text x={p.x + 12} y={p.y + 46} fill="#3F3D37" fontSize="11.5">
-                      {n.ram_gb}GB RAM · {n.relative_speed}× PC1 speed
+                      {n.ram_gb}GB RAM · {n.relative_speed}× speed
                     </text>
                     <text x={p.x + 12} y={p.y + 64} fill="#57534A" fontSize="10.5" fontFamily="var(--mono)">
-                      {activeW}W training / {n.idle_power_w_assumed}W idle
+                      {activeW}W train · {n.idle_power_w_assumed}W idle
                     </text>
                     <text x={p.x + 12} y={p.y + 81} fill="#57534A" fontSize="10.5" fontFamily="var(--mono)">
-                      Upload {n.network_seconds_assumed}s · grid {ci} kg/kWh
+                      Upload {n.network_seconds_assumed}s · {ci} kg/kWh
                     </text>
                   </motion.g>
                 );

@@ -20,6 +20,8 @@ export interface EngineState {
   run_id: string | null;
   result_id: string;
   log: string[];
+  /** Set only by the hosted (Vercel) server: upper bounds a run may use. */
+  hosted_limits?: Partial<Record<'rounds' | 'episodes' | 'repeats' | 'sensitivity', number>>;
 }
 
 export interface PolicySummaryRow {

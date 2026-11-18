@@ -276,6 +276,20 @@ export default function App() {
   }, [engine.log]);
 
   const running = engine.status === 'running';
+  const hostedLimits = engine.hosted_limits;
+
+  // The hosted server rejects runs above its limits, so keep the form inside them.
+  useEffect(() => {
+    if (!hostedLimits) return;
+    const keys = Object.keys(hostedLimits) as (keyof typeof hostedLimits)[];
+    if (!keys.some((k) => settings[k] > (hostedLimits[k] ?? Infinity))) return;
+    setSettings((s) => {
+      const next = { ...s };
+      for (const k of keys) next[k] = Math.min(s[k], hostedLimits[k] ?? s[k]);
+      return next;
+    });
+    setPreset('quick');
+  }, [hostedLimits, settings]);
 
   function applyPreset(kind: 'quick' | 'full') {
     if (running || offline) return;
@@ -611,11 +625,15 @@ export default function App() {
                     <button
                       type="button"
                       className={preset === 'full' ? 'active' : ''}
-                      disabled={running || offline}
-                      data-tip="The settings used for the published results (20 rounds, 130 RL training episodes)."
+                      disabled={running || offline || !!hostedLimits}
+                      data-tip={
+                        hostedLimits
+                          ? 'Full-size runs take too long for the hosted demo. Run the project locally to use them; the published results below already use these settings.'
+                          : 'The settings used for the published results (20 rounds, 130 RL training episodes).'
+                      }
                       onClick={() => applyPreset('full')}
                     >
-                      Full experiment
+                      {hostedLimits ? 'Full (local only)' : 'Full experiment'}
                     </button>
                   </div>
 
@@ -633,7 +651,7 @@ export default function App() {
                           id={key}
                           type="number"
                           min={min}
-                          max={max}
+                          max={hostedLimits?.[key as keyof typeof hostedLimits] ?? max}
                           step={step}
                           disabled={running || offline}
                           value={settings[key]}
@@ -703,7 +721,7 @@ export default function App() {
                           id={key}
                           type="number"
                           min={min}
-                          max={max}
+                          max={hostedLimits?.[key as keyof typeof hostedLimits] ?? max}
                           step={step}
                           disabled={running || offline}
                           value={settings[key]}

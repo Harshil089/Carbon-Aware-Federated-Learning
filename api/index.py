@@ -26,6 +26,7 @@ STATE = {
     'message': 'Baseline results loaded (Ready to run)',
     'run_id': None,
     'result_id': 'baseline',
+    'hosted_limits': HOSTED_LIMITS,
     'log': [
         'PROGRESS 0 Preparing client data',
         'PROGRESS 50 Training scheduler: episode 130/130',
